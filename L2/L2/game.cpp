@@ -192,6 +192,8 @@ void game::on_activ(WPARAM wparam) {
 INT_PTR game::on_colorstatic(LPARAM lparam) {
 	if ((HWND)lparam == enemy)
 		return reinterpret_cast<INT_PTR>(enemy_brush);
+	else if((HWND)lparam == bullets[0])
+		return reinterpret_cast<INT_PTR>(enemy_brush);
 	else
 		return reinterpret_cast<INT_PTR>(player_brush);
 }
@@ -208,6 +210,9 @@ void game::on_keydown(WPARAM wparam) {
 			return;
 		player_pos.x += 25;
 		MoveWindow(player, player_pos.x, player_pos.y, player_size.x, player_size.y, true);
+	}
+	else if (VK_SPACE) {
+		create_bullet();
 	}
 }
 
@@ -236,4 +241,24 @@ void game::move_enemy() {
 
 void game::move_bullets() {
 
+	//MoveWindow(bullets[0], positions[0].x, positions[0].y, 5,80, true);
+}
+
+
+void game::create_bullet() {
+	positions[0] = { player_pos.x, player_pos.y + 10 };
+	bullets[0] = CreateWindowExW(
+		0,
+		L"STATIC",
+		nullptr, ///  brak nazwy klasy sprawia ze okno powstaje z puli gotowych   czyli basic wyglad
+		WS_CHILD | WS_VISIBLE | SS_CENTER,
+		/// CHILD czyli nie wychodzi poza ramke?,       WS_VISIBLE okno poajawi sie bez show window     
+		// CENTER  wyrownanie tekstu w oknie poziomo  do centrum
+		player_pos.x, player_pos.y + 10,// pozycja
+
+		5, 80, // rozmiar (domyslny)
+		m_main, // rodzic 
+		nullptr, /// Menu handle
+		m_instance, // instantcja zapisana przy rejestrrowaniu klasy
+		this);
 }

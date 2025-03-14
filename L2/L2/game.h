@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <string>
 #include <chrono>
-
+#include<iostream>
 #include <array>
 
 class game
@@ -52,8 +52,9 @@ private:
 	void on_timer(WPARAM wparam);
 	void move_enemy();
 	void move_bullets();
-
-	list<HWND> bullets;
+	void create_bullet();
+	HWND bullets[4];
+	POINT positions[4];
 
 public:
 	game(HINSTANCE instance);
