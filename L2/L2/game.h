@@ -36,6 +36,8 @@ private:
 	POINT enemy_size = { 50, 40 };
 	POINT player_size = { 50, 50 };
 	POINT bullet_size = { 5, 15 };
+
+	POINT actual_size;
 	int offset = 30;
 
 	POINT enemy_pos;
@@ -96,6 +98,7 @@ private:
 	void background_color();
 	void background_image();
 	void draw_overlay(HDC main_context);
+	void calc_image_pos();
 
 public:
 	game(HINSTANCE instance);

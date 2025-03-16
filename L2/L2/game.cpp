@@ -194,8 +194,17 @@ game::game(HINSTANCE instance) // instancja jest podawna przy wywolaniu tego smi
 		.lpstrTitle = L"Choose Backgorund Image",
 	};
 
+
+
 	register_class();
 	m_main = create_window();
+
+
+
+	RECT rect;
+	GetClientRect(m_main, &rect);
+	actual_size.x = rect.right - rect.left;
+	actual_size.y = rect.bottom - rect.top;
 }
 
 int game::run(int show_command) // show zommand tez arg z maina jak ma sie stworzyc okno
@@ -370,6 +379,8 @@ void game::on_command(WPARAM wparam) {
 	case ID_SIZE_SMALL:
 		size = { 400,300 };
 		calc_new_pos();
+		background_color();
+		background_image();
 		return;
 	case ID_SIZE_MEDIUM:
 		size = { 800,600 };
@@ -390,6 +401,22 @@ void game::on_command(WPARAM wparam) {
 	case ID_BACKGROUND_IMAGE:
 		GetOpenFileName(&open_file);
 
+		main_background = (HBITMAP)LoadImage(NULL, file_name, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+		if (!GetObject(main_background, sizeof(BITMAP), &bitmap_info))
+			SetWindowText(m_main, L"Nie dziala");
+		else
+			SetWindowText(m_main, L"dziala");
+
+
+
+
+		image_pos = {
+			(actual_size.x  - (int)bitmap_info.bmWidth) / 2,
+			(actual_size.y - (int)bitmap_info.bmHeight) / 2
+		};
+
+		//SetWindowText(m_main, L"dziaa");
 		background_image();
 
 		return;
@@ -433,6 +460,12 @@ void game::calc_new_pos() {
 	MoveWindow(player, player_pos.x, player_pos.y, player_size.x, player_size.y, true);
 	MoveWindow(enemy, enemy_pos.x, enemy_pos.y, enemy_size.x, enemy_size.y, true);
 
+
+	RECT rect;
+	GetClientRect(m_main, &rect);
+	actual_size.x = rect.right - rect.left;
+	actual_size.y = rect.bottom - rect.top;
+
 }
 
 void game::background_color() {
@@ -451,19 +484,21 @@ void game::background_color() {
 void game::background_image() {
 
 	
-	main_background = (HBITMAP)LoadImage(NULL, file_name, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 
-	HDC window = GetDC(m_main);
-	HDC context_bitmap = CreateCompatibleDC(window);
+	HDC main_context = GetDC(m_main);
+	HDC context_bitmap = CreateCompatibleDC(main_context);
 
 	DeleteObject(SelectObject(context_bitmap, main_background));
 
 
-	BitBlt(window, 0, player_pos.y, size.x, size.y, context_bitmap, 0, 0, SRCCOPY);//////////
+
+	BitBlt(main_context, image_pos.x, image_pos.y, size.x, size.y, context_bitmap, 0, 0, SRCCOPY);////////////
 
 	DeleteDC(context_bitmap);
-	ReleaseDC(player, window);
+	ReleaseDC(player, main_context);
 }
+
+
 
 void game::draw_overlay(HDC main_context) {
 
@@ -473,18 +508,25 @@ void game::draw_overlay(HDC main_context) {
 	FillRect(main_context, &clientRect, m_background);
 
 
-	main_background = (HBITMAP)LoadImage(NULL, file_name, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 
 	HDC context_bitmap = CreateCompatibleDC(main_context);
 
 	DeleteObject(SelectObject(context_bitmap, main_background));
 
 
-	BitBlt(main_context, 0, player_pos.y, size.x, size.y, context_bitmap, 0, 0, SRCCOPY);////////////
+	BitBlt(main_context, image_pos.x, image_pos.y, size.x, size.y, context_bitmap, 0, 0, SRCCOPY);////////////
 
 	DeleteDC(context_bitmap);
 	ReleaseDC(player, main_context);
 
 	draw_sprite_player();
 	draw_sprite_enemy();
+}
+
+void game::calc_image_pos() {
+
+	RECT rect;
+	GetClientRect(m_main, &rect);
+	actual_size.x = rect.right - rect.left;
+	actual_size.y = rect.bottom - rect.top;
 }
