@@ -1,6 +1,5 @@
 #include "game.h"
-#include <stdexcept>
-#include<dwmapi.h>
+
 
 std::wstring const game::s_class_name{ L"Space Invaders" };
 
@@ -16,9 +15,9 @@ bool game::register_class() {// rejestrowanie klasy czyli zapisanie co bedzie ob
 	.hInstance = m_instance,     // instantcja klasy					!!!
 
 	.hCursor = LoadCursorW(nullptr, L"IDC_ARROW"), // ladowanie kursora strzalka
-	.hbrBackground = CreateSolidBrush(RGB(250, 247, 238)), // tlo okienka   cos moze sie psuc jak sie tego nie ustawi
+	.hbrBackground = m_background, // tlo okienka   cos moze sie psuc jak sie tego nie ustawi
 
-		//.lpszMenuName = MAKEINTRESOURCEW(ID_MAINMENU), 
+	.lpszMenuName = MAKEINTRESOURCEW(ID_MAINMENU), 
 			//jesli menu jes dodane to tak sie je podlacza po id tu nie jest dodane
 
 		.lpszClassName = s_class_name.c_str() }; // nazwa klasy wazne		!!!
@@ -50,7 +49,7 @@ HWND game::create_window()
 	SetLayeredWindowAttributes(m_main, 0, 255, LWA_ALPHA);
 
 
-	enemy_pos = { (size.x - enemy_size.x) / 2 ,  100 };
+	enemy_pos = { (size.x - enemy_size.x) / 2 ,  enemy_size.y - 20 };
 	enemy = CreateWindowExW(
 		0,
 		L"STATIC",
@@ -66,7 +65,7 @@ HWND game::create_window()
 		m_instance, /// klasa obslugujaca polecenia to tez glowna
 		nullptr);
 
-	player_pos = { (size.x - player_size.x) / 2, size.y - 100 };
+	player_pos = { (size.x - player_size.x) / 2, size.y - 2 * player_size.y - 20 };
 	player = CreateWindowExW(
 		0,
 		L"STATIC",
@@ -75,8 +74,8 @@ HWND game::create_window()
 		/// CHILD czyli nie wychodzi poza ramke?,       WS_VISIBLE okno poajawi sie bez show window     
 		// CENTER  wyrownanie tekstu w oknie poziomo  do centrum
 		player_pos.x, player_pos.y,// pozycja
-		enemy_size.x, // rozmiar poziomo
-		enemy_size.y, // rozmair pionowo
+		player_size.x, // rozmiar poziomo
+		player_size.y, // rozmair pionowo
 		window,
 		nullptr,
 		m_instance, /// klasa obslugujaca polecenia to tez glowna
@@ -134,7 +133,21 @@ LRESULT game::window_proc( /// procedura nie statyczna
 		return 0;
 	case WM_TIMER: // jesli taimer jest ustawiony znaczy ze minal jego czas (timer dziala w loopie wysyla to oc 1 sekunde np)
 		on_timer(wparam); /// btw ta wiadomosc w  wparam ma ktory timer wyslal tu nie potrzebne bo jest tylko 1 timer
+		
 		return 0;
+
+	case WM_COMMAND:
+		on_command(wparam);
+		return 0;
+	case WM_ERASEBKGND:
+		draw_overlay((HDC)wparam);
+
+		return 1;
+	case WM_PAINT:
+
+		return DefWindowProcW(window, message, wparam, lparam);
+		
+
 		//case WM_CTLCOLORSTATIC: //kiedy cos ma byc narysowane
 		//case WM_WINDOWPOSCHANGED: //zmiana pozycji okna 
 		//case WM_TIMER:  // jesli taimer jest ustawiony znaczy ze minal jego czas (timer dziala w loopie wysyla to oc 1 sekunde np)
@@ -147,21 +160,55 @@ LRESULT game::window_proc( /// procedura nie statyczna
 game::game(HINSTANCE instance) // instancja jest podawna przy wywolaniu tego smiesznego maina od WinApi
 	: m_instance{ instance }/*klasy*/, m_main{}, m_screen_size{ GetSystemMetrics(SM_CXSCREEN),   /// obliczenie rozmiaru wyswietalacza
 		GetSystemMetrics(SM_CYSCREEN) }, m_background{ CreateSolidBrush(RGB(255, 255, 255)) },
-	enemy_brush{ CreateSolidBrush(RGB(70, 70, 255)) }, player_brush{ CreateSolidBrush(RGB(255, 0, 0)) }
+	enemy_brush{ CreateSolidBrush(RGB(70, 70, 255)) }, player_brush{ CreateSolidBrush(RGB(255, 0, 0)) },
+	bullet_brush{ CreateSolidBrush(RGB(0, 0, 0)) }
 
 {
-	left = (m_screen_size.x - 800) / 2;
-	top = (m_screen_size.y - 600) / 2;
+	left = (m_screen_size.x - size.x) / 2;
+	top = (m_screen_size.y - size.y) / 2;
+
+	player_sprite_bitmap = LoadBitmap(m_instance, MAKEINTRESOURCE(ID_SHIP));
+
+	enemy_sprite_bitmap = LoadBitmap(m_instance, MAKEINTRESOURCE(ID_INVADER));
+
+
+
+	for (int i = 0; i < 16; ++i) {
+		custom_colors[i] = RGB(255, 255, 255);
+	}
+
+	choose_color = {
+
+		.lStructSize = sizeof(choose_color),
+		.hwndOwner = m_main,  
+		.rgbResult = RGB(255, 255, 255),
+		.lpCustColors = custom_colors,
+		.Flags = CC_RGBINIT | CC_FULLOPEN,
+	};
+
+	open_file = {
+		.lStructSize = sizeof(OPENFILENAME),
+		.hwndOwner = m_main,
+		.lpstrFile = file_name,
+		.nMaxFile = sizeof(file_name),
+		.lpstrTitle = L"Choose Backgorund Image",
+	};
+
 	register_class();
 	m_main = create_window();
 }
 
 int game::run(int show_command) // show zommand tez arg z maina jak ma sie stworzyc okno
 {
+
+	menu = GetMenu(m_main);
 	ShowWindow(m_main, show_command); /// pokazanie okna powikeszenie i gueess
 	SetTimer(m_main, s_timer, 1000, nullptr); /// 1000 ms
 
 	SetTimer(m_main, bullet_timer, 15, nullptr); /// 1000 ms
+	SetTimer(m_main, player_sprite_timer, 100, nullptr); /// 1000 ms
+
+	SetTimer(m_main, enemy_sprite_timer, 50, nullptr); /// 1000 ms
 
 	MSG msg{};
 	BOOL result = TRUE;
@@ -170,10 +217,16 @@ int game::run(int show_command) // show zommand tez arg z maina jak ma sie stwor
 	{
 		if (result == -1) // blad
 			return EXIT_FAILURE;
+		HACCEL shortcuts = LoadAcceleratorsW(m_instance,
+			MAKEINTRESOURCEW(IDR_SHORTCUTS));
 
-		TranslateMessage(&msg); // dla inutu z klawiatury 
-		DispatchMessageW(&msg); /// odbieranie wiadomosci
+		if (!TranslateAcceleratorW(
+			msg.hwnd, shortcuts, &msg))
+		{
 
+			TranslateMessage(&msg); // dla inutu z klawiatury 
+			DispatchMessageW(&msg); /// odbieranie wiadomosci
+		}
 	}
 	return EXIT_SUCCESS;
 }
@@ -188,14 +241,13 @@ void game::on_activ(WPARAM wparam) {
 
 }
 
-
 INT_PTR game::on_colorstatic(LPARAM lparam) {
 	if ((HWND)lparam == enemy)
 		return reinterpret_cast<INT_PTR>(enemy_brush);
-	else if((HWND)lparam == bullets[0])
-		return reinterpret_cast<INT_PTR>(enemy_brush);
-	else
+	else if((HWND)lparam == player)
 		return reinterpret_cast<INT_PTR>(player_brush);
+	else
+		return reinterpret_cast<INT_PTR>(bullet_brush);
 }
 
 void game::on_keydown(WPARAM wparam) {
@@ -206,22 +258,32 @@ void game::on_keydown(WPARAM wparam) {
 		MoveWindow(player, player_pos.x, player_pos.y, player_size.x, player_size.y, true);
 	}
 	else if (VK_RIGHT == wparam) {
-		if (player_pos.x > 700 - 25) 
+		if (player_pos.x > size.x - 125) 
 			return;
 		player_pos.x += 25;
 		MoveWindow(player, player_pos.x, player_pos.y, player_size.x, player_size.y, true);
 	}
-	else if (VK_SPACE) {
+	else if (VK_SPACE == wparam) {
 		create_bullet();
 	}
 }
 
 void game::on_timer(WPARAM wparam) {
-	if (s_timer == wparam)
+	switch (wparam) {
+	case s_timer:
 		move_enemy();
-	else if (bullet_timer == wparam)
+		return;
+	case bullet_timer:
 		move_bullets();
+		return;
+	case player_sprite_timer:
+		draw_sprite_player();
+		return;
+	case enemy_sprite_timer:
+		draw_sprite_enemy();
+		return;
 
+	}
 
 }
 
@@ -241,24 +303,188 @@ void game::move_enemy() {
 
 void game::move_bullets() {
 
-	//MoveWindow(bullets[0], positions[0].x, positions[0].y, 5,80, true);
+	auto it_pos = positions.begin();
+	for (auto it_bullets = bullets.begin(); it_bullets != bullets.end(); ++it_bullets, ++it_pos) {
+		(*it_pos).y -= offset;
+		if ((*it_pos).y <= 0) {
+			DestroyWindow(*it_bullets);
+			continue;
+		}
+		MoveWindow(*it_bullets, (*it_pos).x,(*it_pos).y, bullet_size.x, bullet_size.y, true);
+	}
 }
 
-
 void game::create_bullet() {
-	positions[0] = { player_pos.x, player_pos.y + 10 };
-	bullets[0] = CreateWindowExW(
+	positions.push_back({ player_pos.x + player_size.x / 2, player_pos.y - bullet_size.y });
+	bullets.push_back(CreateWindowExW(
 		0,
 		L"STATIC",
 		nullptr, ///  brak nazwy klasy sprawia ze okno powstaje z puli gotowych   czyli basic wyglad
 		WS_CHILD | WS_VISIBLE | SS_CENTER,
 		/// CHILD czyli nie wychodzi poza ramke?,       WS_VISIBLE okno poajawi sie bez show window     
 		// CENTER  wyrownanie tekstu w oknie poziomo  do centrum
-		player_pos.x, player_pos.y + 10,// pozycja
+		player_pos.x + player_size.x / 2, player_pos.y - bullet_size.y,// pozycja
 
-		5, 80, // rozmiar (domyslny)
+		bullet_size.x, bullet_size.y, // rozmiar (domyslny)
 		m_main, // rodzic 
 		nullptr, /// Menu handle
 		m_instance, // instantcja zapisana przy rejestrrowaniu klasy
-		this);
+		this));
+}
+
+
+void game::draw_sprite_player() {
+
+	HDC window = GetDC(player);
+	HDC context_bitmap = CreateCompatibleDC(window);
+
+	DeleteObject(SelectObject(context_bitmap, player_sprite_bitmap));
+
+	player_animation++;
+	player_animation %= 3;
+	BitBlt(window, 0, 0, player_size.x, player_size.y, context_bitmap, player_animation * 50, 0, SRCCOPY);
+
+	DeleteDC(context_bitmap);
+	ReleaseDC(player, window);
+
+}
+void game::draw_sprite_enemy() {
+	HDC window = GetDC(enemy);
+	HDC context_bitmap = CreateCompatibleDC(window);
+
+	HBITMAP oldBitmap = reinterpret_cast<HBITMAP>(SelectObject(context_bitmap, enemy_sprite_bitmap));
+
+	enemy_animation++;
+	enemy_animation %= 4;
+	BitBlt(window, 0, 0, enemy_size.x, enemy_size.y, context_bitmap, enemy_animation * 50, 0, SRCCOPY);
+
+	SelectObject(context_bitmap, oldBitmap);
+	DeleteDC(context_bitmap);  
+	ReleaseDC(enemy, window);
+}
+
+
+void game::on_command(WPARAM wparam) {
+
+	switch (LOWORD(wparam)) {
+	case ID_SIZE_SMALL:
+		size = { 400,300 };
+		calc_new_pos();
+		return;
+	case ID_SIZE_MEDIUM:
+		size = { 800,600 };
+		calc_new_pos();
+		return;
+	case ID_SIZE_LARGE:
+		size = { 1000,800 };
+		calc_new_pos();
+		return;
+	case ID_BACKGROUND_SOLID:
+		ChooseColor(&choose_color);
+		DeleteObject(m_background);
+		m_background = CreateSolidBrush(choose_color.rgbResult);
+
+		background_color();
+		background_image();
+		return;
+	case ID_BACKGROUND_IMAGE:
+		GetOpenFileName(&open_file);
+
+		background_image();
+
+		return;
+	case ID_NEWGAME:
+		return;
+	case ID_IMAGE_FILL:
+		CheckMenuRadioItem(menu, ID_IMAGE_CENTER, ID_IMAGE_FIT, ID_IMAGE_FILL, MF_CHECKED);
+		image_type = Fill;
+		return;
+
+	case ID_IMAGE_CENTER:
+		CheckMenuRadioItem(menu, ID_IMAGE_CENTER, ID_IMAGE_FIT, ID_IMAGE_CENTER, MF_CHECKED);
+		image_type = Center;
+		return;
+
+	case ID_IMAGE_FIT:
+		CheckMenuRadioItem(menu, ID_IMAGE_CENTER, ID_IMAGE_FIT, ID_IMAGE_FIT, MF_CHECKED);
+		image_type = Fit;
+		return;
+
+	case ID_IMAGE_TILE:
+		CheckMenuRadioItem(menu, ID_IMAGE_CENTER, ID_IMAGE_FIT, ID_IMAGE_TILE, MF_CHECKED);
+		image_type = Tile;
+		return;
+
+
+	}
+}
+
+void game::calc_new_pos() {
+
+	left = (m_screen_size.x - size.x) / 2;
+	top = (m_screen_size.y - size.y) / 2;
+
+
+	player_pos = { (size.x - player_size.x) / 2, size.y - 2 * player_size.y - 20 };
+
+	enemy_pos = { (size.x - enemy_size.x) / 2 ,  enemy_size.y - 20 };
+
+	MoveWindow(m_main, left, top, size.x, size.y, true);
+	MoveWindow(player, player_pos.x, player_pos.y, player_size.x, player_size.y, true);
+	MoveWindow(enemy, enemy_pos.x, enemy_pos.y, enemy_size.x, enemy_size.y, true);
+
+}
+
+void game::background_color() {
+	
+	HDC main_context = GetDC(m_main);
+	
+	RECT clientRect;
+	GetClientRect(m_main, &clientRect);
+
+	FillRect(main_context, &clientRect, m_background);
+
+	ReleaseDC(m_main, main_context);
+}
+
+
+void game::background_image() {
+
+	
+	main_background = (HBITMAP)LoadImage(NULL, file_name, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+	HDC window = GetDC(m_main);
+	HDC context_bitmap = CreateCompatibleDC(window);
+
+	DeleteObject(SelectObject(context_bitmap, main_background));
+
+
+	BitBlt(window, 0, player_pos.y, size.x, size.y, context_bitmap, 0, 0, SRCCOPY);//////////
+
+	DeleteDC(context_bitmap);
+	ReleaseDC(player, window);
+}
+
+void game::draw_overlay(HDC main_context) {
+
+	RECT clientRect;
+	GetClientRect(m_main, &clientRect);
+
+	FillRect(main_context, &clientRect, m_background);
+
+
+	main_background = (HBITMAP)LoadImage(NULL, file_name, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+	HDC context_bitmap = CreateCompatibleDC(main_context);
+
+	DeleteObject(SelectObject(context_bitmap, main_background));
+
+
+	BitBlt(main_context, 0, player_pos.y, size.x, size.y, context_bitmap, 0, 0, SRCCOPY);////////////
+
+	DeleteDC(context_bitmap);
+	ReleaseDC(player, main_context);
+
+	draw_sprite_player();
+	draw_sprite_enemy();
 }
