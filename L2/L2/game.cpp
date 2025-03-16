@@ -379,16 +379,28 @@ void game::on_command(WPARAM wparam) {
 	case ID_SIZE_SMALL:
 		size = { 400,300 };
 		calc_new_pos();
+
+		calc_image_pos();
 		background_color();
 		background_image();
 		return;
 	case ID_SIZE_MEDIUM:
 		size = { 800,600 };
 		calc_new_pos();
+
+
+		calc_image_pos();
+		background_color();
+		background_image();
 		return;
 	case ID_SIZE_LARGE:
 		size = { 1000,800 };
 		calc_new_pos();
+
+
+		calc_image_pos();
+		background_color();
+		background_image();
 		return;
 	case ID_BACKGROUND_SOLID:
 		ChooseColor(&choose_color);
@@ -403,20 +415,14 @@ void game::on_command(WPARAM wparam) {
 
 		main_background = (HBITMAP)LoadImage(NULL, file_name, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 
-		if (!GetObject(main_background, sizeof(BITMAP), &bitmap_info))
-			SetWindowText(m_main, L"Nie dziala");
-		else
-			SetWindowText(m_main, L"dziala");
+		GetObject(main_background, sizeof(BITMAP), &bitmap_info);
 
 
 
-
-		image_pos = {
-			(actual_size.x  - (int)bitmap_info.bmWidth) / 2,
-			(actual_size.y - (int)bitmap_info.bmHeight) / 2
-		};
+		calc_image_pos();
 
 		//SetWindowText(m_main, L"dziaa");
+		background_color();
 		background_image();
 
 		return;
@@ -529,4 +535,9 @@ void game::calc_image_pos() {
 	GetClientRect(m_main, &rect);
 	actual_size.x = rect.right - rect.left;
 	actual_size.y = rect.bottom - rect.top;
+
+	image_pos = {
+			(actual_size.x - (int)bitmap_info.bmWidth) / 2,
+			(actual_size.y - (int)bitmap_info.bmHeight) / 2
+	};
 }
