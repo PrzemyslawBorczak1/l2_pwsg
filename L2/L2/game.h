@@ -8,6 +8,8 @@
 #include <Commdlg.h>
 #include "ImageType.h"
 
+#include <cstdlib>
+
 class game
 {
 private:
@@ -52,7 +54,6 @@ private:
 
 	HBITMAP player_sprite_bitmap;
 	HBITMAP enemy_sprite_bitmap;
-	HBITMAP main_background;
 
 	int player_animation = 0;
 	int enemy_animation = 0;
@@ -63,11 +64,12 @@ private:
 	CHOOSECOLOR choose_color;
 	COLORREF custom_colors[16];
 
+	HBITMAP main_background = NULL;
 	wchar_t file_name[MAX_PATH];
 	OPENFILENAME open_file;
 	BITMAP bitmap_info;
 
-	POINT image_pos;
+	POINT center_image_pos = {-1,-1};
 
 	
 	ImageType image_type = Center;
@@ -94,10 +96,9 @@ private:
 	void draw_sprite_enemy();
 
 	void on_command(WPARAM wparam);
-	void calc_new_pos();
-	void background_color();
-	void background_image();
-	void draw_overlay(HDC main_context);
+	void set_new_pos();
+	void update_overlay(HDC main_context);
+	void draw_and_calc_overlay();
 	void calc_image_pos();
 
 public:

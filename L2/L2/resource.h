@@ -21,13 +21,15 @@
 #define ID_IMAGE_FIT                    40013
 #define ID_GAME_NEWGAME                 40020
 #define ID_NEWGAME                      40021
+#define ID_BACKGROUND_IMAGETYPE         40023
+#define ID_BACKGROUND_IMAGE40024        40024
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        105
-#define _APS_NEXT_COMMAND_VALUE         40023
+#define _APS_NEXT_COMMAND_VALUE         40025
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

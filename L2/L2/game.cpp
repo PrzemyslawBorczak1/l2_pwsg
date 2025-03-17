@@ -29,7 +29,7 @@ HWND game::create_window()
 {
 
 	HWND window = CreateWindowExW(
-		WS_EX_TOPMOST | WS_EX_LAYERED,   // dodatkowe style   scrol bar,    overllaping .... 
+		WS_EX_TOPMOST | WS_EX_LAYERED ,   // dodatkowe style   scrol bar,    overllaping .... 
 		s_class_name.c_str(), // klasa wczesniej zerejestrowana    c_str() zmienia na zwykly string z C
 		L"Space Invaders _ WINAPI", // nazwa okienka
 
@@ -140,7 +140,7 @@ LRESULT game::window_proc( /// procedura nie statyczna
 		on_command(wparam);
 		return 0;
 	case WM_ERASEBKGND:
-		draw_overlay((HDC)wparam);
+		update_overlay((HDC)wparam);
 
 		return 1;
 	case WM_PAINT:
@@ -378,37 +378,28 @@ void game::on_command(WPARAM wparam) {
 	switch (LOWORD(wparam)) {
 	case ID_SIZE_SMALL:
 		size = { 400,300 };
-		calc_new_pos();
+		set_new_pos();
 
-		calc_image_pos();
-		background_color();
-		background_image();
+		draw_and_calc_overlay();
 		return;
 	case ID_SIZE_MEDIUM:
 		size = { 800,600 };
-		calc_new_pos();
+		set_new_pos();
 
-
-		calc_image_pos();
-		background_color();
-		background_image();
+		draw_and_calc_overlay();
 		return;
 	case ID_SIZE_LARGE:
 		size = { 1000,800 };
-		calc_new_pos();
+		set_new_pos();
 
-
-		calc_image_pos();
-		background_color();
-		background_image();
+		draw_and_calc_overlay();
 		return;
 	case ID_BACKGROUND_SOLID:
 		ChooseColor(&choose_color);
 		DeleteObject(m_background);
 		m_background = CreateSolidBrush(choose_color.rgbResult);
 
-		background_color();
-		background_image();
+		draw_and_calc_overlay();
 		return;
 	case ID_BACKGROUND_IMAGE:
 		GetOpenFileName(&open_file);
@@ -417,13 +408,7 @@ void game::on_command(WPARAM wparam) {
 
 		GetObject(main_background, sizeof(BITMAP), &bitmap_info);
 
-
-
-		calc_image_pos();
-
-		//SetWindowText(m_main, L"dziaa");
-		background_color();
-		background_image();
+		draw_and_calc_overlay();
 
 		return;
 	case ID_NEWGAME:
@@ -431,28 +416,36 @@ void game::on_command(WPARAM wparam) {
 	case ID_IMAGE_FILL:
 		CheckMenuRadioItem(menu, ID_IMAGE_CENTER, ID_IMAGE_FIT, ID_IMAGE_FILL, MF_CHECKED);
 		image_type = Fill;
+
+		draw_and_calc_overlay();
 		return;
 
 	case ID_IMAGE_CENTER:
 		CheckMenuRadioItem(menu, ID_IMAGE_CENTER, ID_IMAGE_FIT, ID_IMAGE_CENTER, MF_CHECKED);
 		image_type = Center;
+
+		draw_and_calc_overlay();
 		return;
 
 	case ID_IMAGE_FIT:
 		CheckMenuRadioItem(menu, ID_IMAGE_CENTER, ID_IMAGE_FIT, ID_IMAGE_FIT, MF_CHECKED);
 		image_type = Fit;
+
+		draw_and_calc_overlay();
 		return;
 
 	case ID_IMAGE_TILE:
 		CheckMenuRadioItem(menu, ID_IMAGE_CENTER, ID_IMAGE_FIT, ID_IMAGE_TILE, MF_CHECKED);
 		image_type = Tile;
+
+		draw_and_calc_overlay();
 		return;
 
 
 	}
 }
 
-void game::calc_new_pos() {
+void game::set_new_pos() {
 
 	left = (m_screen_size.x - size.x) / 2;
 	top = (m_screen_size.y - size.y) / 2;
@@ -474,6 +467,7 @@ void game::calc_new_pos() {
 
 }
 
+/**
 void game::background_color() {
 	
 	HDC main_context = GetDC(m_main);
@@ -505,8 +499,17 @@ void game::background_image() {
 }
 
 
+*/
 
-void game::draw_overlay(HDC main_context) {
+
+void game::draw_and_calc_overlay() {
+
+	calc_image_pos();
+	HDC main_context = GetDC(m_main);
+	update_overlay(main_context);
+}
+
+void game::update_overlay(HDC main_context) {
 
 	RECT clientRect;
 	GetClientRect(m_main, &clientRect);
@@ -519,8 +522,38 @@ void game::draw_overlay(HDC main_context) {
 
 	DeleteObject(SelectObject(context_bitmap, main_background));
 
+	POINT pos = { 0,0 };
 
-	BitBlt(main_context, image_pos.x, image_pos.y, size.x, size.y, context_bitmap, 0, 0, SRCCOPY);////////////
+
+
+	if (main_background != NULL) {
+		switch (image_type) {
+		case Center:
+			if (center_image_pos.x < 0 && center_image_pos.y < 0)
+				BitBlt(main_context, 0, 0, actual_size.x, actual_size.y, context_bitmap, abs(center_image_pos.x), abs(center_image_pos.y), SRCCOPY);
+			if (center_image_pos.x < 0 )
+				BitBlt(main_context, 0, center_image_pos.y, actual_size.x, actual_size.y, context_bitmap, abs(center_image_pos.x), 0, SRCCOPY);
+			if (center_image_pos.y < 0)
+				BitBlt(main_context, center_image_pos.x, 0, actual_size.x, actual_size.y, context_bitmap, 0, abs(center_image_pos.y), SRCCOPY);
+
+			BitBlt(main_context, center_image_pos.x, center_image_pos.y,  actual_size.x ,actual_size.y , context_bitmap, 0, 0, SRCCOPY);
+			break;
+		case Tile:
+			while (pos.x < actual_size.x) {
+				while (pos.y < actual_size.y) {
+					BitBlt(main_context, pos.x, pos.y, actual_size.x - pos.x, actual_size.y - pos.y, context_bitmap, 0, 0, SRCCOPY);
+					pos.y += bitmap_info.bmHeight;
+				}
+				pos.y = 0;
+				pos.x += bitmap_info.bmWidth;
+			}
+			break;
+		case Fill:
+			StretchBlt(main_context, 0, 0, actual_size.x, actual_size.y, context_bitmap,
+				0, 0, bitmap_info.bmWidth, bitmap_info.bmHeight, SRCCOPY);
+			break;
+		}
+	}
 
 	DeleteDC(context_bitmap);
 	ReleaseDC(player, main_context);
@@ -536,8 +569,8 @@ void game::calc_image_pos() {
 	actual_size.x = rect.right - rect.left;
 	actual_size.y = rect.bottom - rect.top;
 
-	image_pos = {
-			(actual_size.x - (int)bitmap_info.bmWidth) / 2,
-			(actual_size.y - (int)bitmap_info.bmHeight) / 2
+	center_image_pos = {
+		(actual_size.x - (int)bitmap_info.bmWidth) / 2,
+		(actual_size.y - (int)bitmap_info.bmHeight) / 2
 	};
 }
