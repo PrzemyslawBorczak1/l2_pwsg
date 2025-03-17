@@ -251,12 +251,18 @@ void game::on_activ(WPARAM wparam) {
 }
 
 INT_PTR game::on_colorstatic(LPARAM lparam) {
-	if ((HWND)lparam == enemy)
+	/*if ((HWND)lparam == enemy)
 		return reinterpret_cast<INT_PTR>(enemy_brush);
 	else if((HWND)lparam == player)
 		return reinterpret_cast<INT_PTR>(player_brush);
 	else
+		return reinterpret_cast<INT_PTR>(bullet_brush);*/
+
+
+	if ((HWND)lparam != player && (HWND)lparam != enemy)
+
 		return reinterpret_cast<INT_PTR>(bullet_brush);
+
 }
 
 void game::on_keydown(WPARAM wparam) {
@@ -286,9 +292,15 @@ void game::on_timer(WPARAM wparam) {
 		move_bullets();
 		return;
 	case player_sprite_timer:
+
+		player_animation++;
+		player_animation %= 3;
 		draw_sprite_player();
 		return;
 	case enemy_sprite_timer:
+
+		enemy_animation++;
+		enemy_animation %= 4;
 		draw_sprite_enemy();
 		return;
 
@@ -319,6 +331,14 @@ void game::move_bullets() {
 			DestroyWindow(*it_bullets);
 			continue;
 		}
+		if ((*it_pos).x >= enemy_pos.x && 
+			(*it_pos).x <= enemy_pos.x + enemy_size.x &&
+			(*it_pos).y <= enemy_pos.y) {
+			DestroyWindow(*it_bullets);
+			score++;
+			draw_score();
+			continue;
+		}
 		MoveWindow(*it_bullets, (*it_pos).x,(*it_pos).y, bullet_size.x, bullet_size.y, true);
 	}
 }
@@ -341,16 +361,14 @@ void game::create_bullet() {
 		this));
 }
 
-
 void game::draw_sprite_player() {
 
 	HDC window = GetDC(player);
 	HDC context_bitmap = CreateCompatibleDC(window);
 
+
 	DeleteObject(SelectObject(context_bitmap, player_sprite_bitmap));
 
-	player_animation++;
-	player_animation %= 3;
 	BitBlt(window, 0, 0, player_size.x, player_size.y, context_bitmap, player_animation * 50, 0, SRCCOPY);
 
 	DeleteDC(context_bitmap);
@@ -363,13 +381,13 @@ void game::draw_sprite_enemy() {
 
 	HBITMAP oldBitmap = reinterpret_cast<HBITMAP>(SelectObject(context_bitmap, enemy_sprite_bitmap));
 
-	enemy_animation++;
-	enemy_animation %= 4;
-	BitBlt(window, 0, 0, enemy_size.x, enemy_size.y, context_bitmap, enemy_animation * 50, 0, SRCCOPY);
+	auto magenta = RGB(255, 0, 255);
+	TransparentBlt(window, 0, 0, enemy_size.x, enemy_size.y, context_bitmap, enemy_animation * 50, 0, enemy_size.x, enemy_size.y, magenta);
 
 	SelectObject(context_bitmap, oldBitmap);
-	DeleteDC(context_bitmap);  
+	DeleteDC(context_bitmap);
 	ReleaseDC(enemy, window);
+
 }
 
 
@@ -386,7 +404,7 @@ void game::on_command(WPARAM wparam) {
 		size = { 800,600 };
 		set_new_pos();
 
-		draw_and_calc_overlay();
+		draw_and_calc_overlay();///////
 		return;
 	case ID_SIZE_LARGE:
 		size = { 1000,800 };
@@ -412,6 +430,9 @@ void game::on_command(WPARAM wparam) {
 
 		return;
 	case ID_NEWGAME:
+
+
+
 		return;
 	case ID_IMAGE_FILL:
 		CheckMenuRadioItem(menu, ID_IMAGE_CENTER, ID_IMAGE_FIT, ID_IMAGE_FILL, MF_CHECKED);
@@ -438,6 +459,15 @@ void game::on_command(WPARAM wparam) {
 		CheckMenuRadioItem(menu, ID_IMAGE_CENTER, ID_IMAGE_FIT, ID_IMAGE_TILE, MF_CHECKED);
 		image_type = Tile;
 
+		draw_and_calc_overlay();
+		return;
+
+	case ID_GAME_SAVE:
+		//save_game_config();
+		return;
+
+	case ID_GAME_LOAD:
+		//load_game_config();
 		draw_and_calc_overlay();
 		return;
 
@@ -523,6 +553,9 @@ void game::update_overlay(HDC main_context) {
 	DeleteObject(SelectObject(context_bitmap, main_background));
 
 	POINT pos = { 0,0 };
+	float ratio_x, ratio_y,ratio;
+
+	int new_size_x, new_size_y;
 
 
 
@@ -552,6 +585,21 @@ void game::update_overlay(HDC main_context) {
 			StretchBlt(main_context, 0, 0, actual_size.x, actual_size.y, context_bitmap,
 				0, 0, bitmap_info.bmWidth, bitmap_info.bmHeight, SRCCOPY);
 			break;
+		case Fit:
+			ratio_x = (float)bitmap_info.bmWidth / (float)actual_size.x;
+			ratio_y = (float)bitmap_info.bmHeight / (float)actual_size.y;
+			if (ratio_x > ratio_y) 
+				ratio = ratio_x;
+			else
+				ratio = ratio_y;
+
+
+			new_size_x = bitmap_info.bmWidth / ratio;
+			new_size_y = bitmap_info.bmHeight / ratio;
+
+			StretchBlt(main_context, (actual_size.x - new_size_x) / 2, (actual_size.y - new_size_y) / 2, new_size_x, new_size_y, context_bitmap,
+				0, 0, bitmap_info.bmWidth, bitmap_info.bmHeight, SRCCOPY);
+
 		}
 	}
 
@@ -560,6 +608,8 @@ void game::update_overlay(HDC main_context) {
 
 	draw_sprite_player();
 	draw_sprite_enemy();
+
+	draw_score();
 }
 
 void game::calc_image_pos() {
@@ -574,3 +624,100 @@ void game::calc_image_pos() {
 		(actual_size.y - (int)bitmap_info.bmHeight) / 2
 	};
 }
+
+void game::draw_score() {
+	HDC main_context = GetDC(m_main);
+
+	wchar_t buffer[10];
+	swprintf(buffer, 10, L"%d", score);
+	TextOut(main_context, 50, 10, (LPCWSTR)buffer, wcslen(buffer));
+
+
+	ReleaseDC(m_main,main_context);
+}
+
+
+/*
+void game::save_game_config() {
+	// Save the configuration to an INI file (e.g., "game_config.ini")
+	WritePrivateProfileString(L"GameConfig", L"WindowWidth", std::to_wstring(size.x).c_str(), L"game_config.ini");
+	WritePrivateProfileString(L"GameConfig", L"WindowHeight", std::to_wstring(size.y).c_str(), L"game_config.ini");
+	WritePrivateProfileString(L"GameConfig", L"ActualWindowWidth", std::to_wstring(actual_size.x).c_str(), L"game_config.ini");
+	WritePrivateProfileString(L"GameConfig", L"ActualWindowHeight", std::to_wstring(actual_size.y).c_str(), L"game_config.ini");
+	WritePrivateProfileString(L"GameConfig", L"Offset", std::to_wstring(offset).c_str(), L"game_config.ini");
+
+	WritePrivateProfileString(L"GameConfig", L"EnemyPosX", std::to_wstring(enemy_pos.x).c_str(), L"game_config.ini");
+	WritePrivateProfileString(L"GameConfig", L"EnemyPosY", std::to_wstring(enemy_pos.y).c_str(), L"game_config.ini");
+
+	WritePrivateProfileString(L"GameConfig", L"PlayerPosX", std::to_wstring(player_pos.x).c_str(), L"game_config.ini");
+	WritePrivateProfileString(L"GameConfig", L"PlayerPosY", std::to_wstring(player_pos.y).c_str(), L"game_config.ini");
+
+	WritePrivateProfileString(L"GameConfig", L"BackgroundImage", file_name, L"game_config.ini");
+
+	WritePrivateProfileString(L"GameConfig", L"BitmapWidth", std::to_wstring(bitmap_info.bmWidth).c_str(), L"game_config.ini");
+	WritePrivateProfileString(L"GameConfig", L"BitmapHeight", std::to_wstring(bitmap_info.bmHeight).c_str(), L"game_config.ini");
+
+	WritePrivateProfileString(L"GameConfig", L"CenterImagePosX", std::to_wstring(center_image_pos.x).c_str(), L"game_config.ini");
+	WritePrivateProfileString(L"GameConfig", L"CenterImagePosY", std::to_wstring(center_image_pos.y).c_str(), L"game_config.ini");
+
+	WritePrivateProfileString(L"GameConfig", L"ImageType", std::to_wstring(image_type).c_str(), L"game_config.ini");
+	WritePrivateProfileString(L"GameConfig", L"Score", std::to_wstring(score).c_str(), L"game_config.ini");
+}
+
+// Method to load game configuration from an INI file
+void game::load_game_config() {
+	wchar_t buffer[MAX_PATH];
+
+	// Load window size
+	GetPrivateProfileString(L"GameConfig", L"WindowWidth", L"800", buffer, MAX_PATH, L"game_config.ini");
+	size.x = _wtoi(buffer);
+	GetPrivateProfileString(L"GameConfig", L"WindowHeight", L"600", buffer, MAX_PATH, L"game_config.ini");
+	size.y = _wtoi(buffer);
+
+	// Load actual window size
+	GetPrivateProfileString(L"GameConfig", L"ActualWindowWidth", L"800", buffer, MAX_PATH, L"game_config.ini");
+	actual_size.x = _wtoi(buffer);
+	GetPrivateProfileString(L"GameConfig", L"ActualWindowHeight", L"600", buffer, MAX_PATH, L"game_config.ini");
+	actual_size.y = _wtoi(buffer);
+
+	// Load offset
+	GetPrivateProfileString(L"GameConfig", L"Offset", L"30", buffer, MAX_PATH, L"game_config.ini");
+	offset = _wtoi(buffer);
+
+	// Load enemy position
+	GetPrivateProfileString(L"GameConfig", L"EnemyPosX", L"100", buffer, MAX_PATH, L"game_config.ini");
+	enemy_pos.x = _wtoi(buffer);
+	GetPrivateProfileString(L"GameConfig", L"EnemyPosY", L"100", buffer, MAX_PATH, L"game_config.ini");
+	enemy_pos.y = _wtoi(buffer);
+
+	// Load player position
+	GetPrivateProfileString(L"GameConfig", L"PlayerPosX", L"200", buffer, MAX_PATH, L"game_config.ini");
+	player_pos.x = _wtoi(buffer);
+	GetPrivateProfileString(L"GameConfig", L"PlayerPosY", L"200", buffer, MAX_PATH, L"game_config.ini");
+	player_pos.y = _wtoi(buffer);
+
+	// Load background image file path
+	GetPrivateProfileString(L"GameConfig", L"BackgroundImage", L"", file_name, MAX_PATH, L"game_config.ini");
+
+	// Load bitmap info (e.g., width and height)
+	GetPrivateProfileString(L"GameConfig", L"BitmapWidth", L"800", buffer, MAX_PATH, L"game_config.ini");
+	bitmap_info.bmWidth = _wtoi(buffer);
+	GetPrivateProfileString(L"GameConfig", L"BitmapHeight", L"600", buffer, MAX_PATH, L"game_config.ini");
+	bitmap_info.bmHeight = _wtoi(buffer);
+
+	// Load image position
+	GetPrivateProfileString(L"GameConfig", L"CenterImagePosX", L"-1", buffer, MAX_PATH, L"game_config.ini");
+	center_image_pos.x = _wtoi(buffer);
+	GetPrivateProfileString(L"GameConfig", L"CenterImagePosY", L"-1", buffer, MAX_PATH, L"game_config.ini");
+	center_image_pos.y = _wtoi(buffer);
+
+	// Load image type (Fit or other)
+	GetPrivateProfileString(L"GameConfig", L"ImageType", L"0", buffer, MAX_PATH, L"game_config.ini");
+	image_type = (ImageType)_wtoi(buffer);
+
+	// Load score
+	GetPrivateProfileString(L"GameConfig", L"Score", L"0", buffer, MAX_PATH, L"game_config.ini");
+	score = _wtoi(buffer);
+}
+
+*/

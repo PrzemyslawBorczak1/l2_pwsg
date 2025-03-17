@@ -9,6 +9,8 @@
 #include "ImageType.h"
 
 #include <cstdlib>
+#include <cwchar>
+#pragma comment(lib, "Msimg32.lib")
 
 class game
 {
@@ -24,7 +26,7 @@ private:
 
 	HINSTANCE m_instance; // instancja execa
 	HWND m_main; /// uchwyt okna
-	HBRUSH m_background;
+	HBRUSH m_background; /// -------
 	HBRUSH enemy_brush;
 	HBRUSH player_brush;
 	HBRUSH bullet_brush;
@@ -33,17 +35,17 @@ private:
 	int top;
 
 	int enemy_status = 0;
-
-	POINT size = { 800,600 };
+	
+	POINT size = { 800,600 };  //     -------
 	POINT enemy_size = { 50, 40 };
 	POINT player_size = { 50, 50 };
 	POINT bullet_size = { 5, 15 };
 
-	POINT actual_size;
+	POINT actual_size; //  policzyc
 	int offset = 30;
-
-	POINT enemy_pos;
-	POINT player_pos;
+	
+	POINT enemy_pos;// 
+	POINT player_pos;//
 
 
 	HWND player;
@@ -59,20 +61,22 @@ private:
 	int enemy_animation = 0;
 
 
-	//
+	
 	HMENU menu;
 	CHOOSECOLOR choose_color;
 	COLORREF custom_colors[16];
+	
 
-	HBITMAP main_background = NULL;
-	wchar_t file_name[MAX_PATH];
-	OPENFILENAME open_file;
-	BITMAP bitmap_info;
+	HBITMAP main_background = NULL; //     ------- 
+	wchar_t file_name[MAX_PATH]; //    
+	OPENFILENAME open_file; //    
+	BITMAP bitmap_info; //    policzyc
 
 	POINT center_image_pos = {-1,-1};
 
 	
-	ImageType image_type = Center;
+	ImageType image_type = Fit;//    *****
+	int score; //     -----
 
 	static LRESULT CALLBACK window_proc_static(
 		HWND window, UINT message,
@@ -100,7 +104,11 @@ private:
 	void update_overlay(HDC main_context);
 	void draw_and_calc_overlay();
 	void calc_image_pos();
-
+	void draw_score();
+	/**
+	void save_game_config();
+	void load_game_config();
+	/**/
 public:
 	game(HINSTANCE instance);
 	int run(int show_command);
