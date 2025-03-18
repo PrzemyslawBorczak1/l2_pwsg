@@ -8,9 +8,14 @@
 #include <Commdlg.h>
 #include "ImageType.h"
 
+
 #include <cstdlib>
 #include <cwchar>
-#pragma comment(lib, "Msimg32.lib")
+#include<winbase.h>
+
+
+
+#include <strsafe.h>
 
 class game
 {
@@ -26,7 +31,12 @@ private:
 
 	HINSTANCE m_instance; // instancja execa
 	HWND m_main; /// uchwyt okna
+
+
 	HBRUSH m_background; /// -------
+	COLORREF color = RGB(255, 255, 255);
+
+
 	HBRUSH enemy_brush;
 	HBRUSH player_brush;
 	HBRUSH bullet_brush;
@@ -68,14 +78,14 @@ private:
 	
 
 	HBITMAP main_background = NULL; //     ------- 
-	wchar_t file_name[MAX_PATH]; //    
-	OPENFILENAME open_file; //    
+	wchar_t file_name[MAX_PATH]; //    ------
+	OPENFILENAME open_file; //    odtworzyc
 	BITMAP bitmap_info; //    policzyc
 
 	POINT center_image_pos = {-1,-1};
 
 	
-	ImageType image_type = Fit;//    *****
+	ImageType image_type = Fit;//   -----
 	int score; //     -----
 
 	static LRESULT CALLBACK window_proc_static(
@@ -105,9 +115,8 @@ private:
 	void draw_and_calc_overlay();
 	void calc_image_pos();
 	void draw_score();
-	/**
-	void save_game_config();
-	void load_game_config();
+	void save();
+	void load();
 	/**/
 public:
 	game(HINSTANCE instance);

@@ -65,6 +65,7 @@ HWND game::create_window()
 		m_instance, /// klasa obslugujaca polecenia to tez glowna
 		nullptr);
 
+
 	player_pos = { (size.x - player_size.x) / 2, size.y - 2 * player_size.y - 20 };
 	player = CreateWindowExW(
 		0,
@@ -160,7 +161,7 @@ LRESULT game::window_proc( /// procedura nie statyczna
 game::game(HINSTANCE instance) // instancja jest podawna przy wywolaniu tego smiesznego maina od WinApi
 	: m_instance{ instance }/*klasy*/, m_main{}, m_screen_size{ GetSystemMetrics(SM_CXSCREEN),   /// obliczenie rozmiaru wyswietalacza
 		GetSystemMetrics(SM_CYSCREEN) }, m_background{ CreateSolidBrush(RGB(255, 255, 255)) },
-	enemy_brush{ CreateSolidBrush(RGB(70, 70, 255)) }, player_brush{ CreateSolidBrush(RGB(255, 0, 0)) },
+	enemy_brush{ CreateSolidBrush(RGB(255, 255, 255)) }, player_brush{ CreateSolidBrush(RGB(255, 0, 0)) },
 	bullet_brush{ CreateSolidBrush(RGB(0, 0, 0)) }
 
 {
@@ -262,6 +263,9 @@ INT_PTR game::on_colorstatic(LPARAM lparam) {
 	if ((HWND)lparam != player && (HWND)lparam != enemy)
 
 		return reinterpret_cast<INT_PTR>(bullet_brush);
+
+	if ((HWND)lparam == enemy)
+		return reinterpret_cast<INT_PTR>(enemy_brush);
 
 }
 
@@ -381,8 +385,9 @@ void game::draw_sprite_enemy() {
 
 	HBITMAP oldBitmap = reinterpret_cast<HBITMAP>(SelectObject(context_bitmap, enemy_sprite_bitmap));
 
-	auto magenta = RGB(255, 0, 255);
-	TransparentBlt(window, 0, 0, enemy_size.x, enemy_size.y, context_bitmap, enemy_animation * 50, 0, enemy_size.x, enemy_size.y, magenta);
+
+	BitBlt(window, 0, 0, enemy_size.x, enemy_size.y, context_bitmap, enemy_animation * enemy_size.x, 0, SRCCOPY);
+
 
 	SelectObject(context_bitmap, oldBitmap);
 	DeleteDC(context_bitmap);
@@ -416,6 +421,7 @@ void game::on_command(WPARAM wparam) {
 		ChooseColor(&choose_color);
 		DeleteObject(m_background);
 		m_background = CreateSolidBrush(choose_color.rgbResult);
+		color = choose_color.rgbResult;
 
 		draw_and_calc_overlay();
 		return;
@@ -463,11 +469,11 @@ void game::on_command(WPARAM wparam) {
 		return;
 
 	case ID_GAME_SAVE:
-		//save_game_config();
+		save();
 		return;
 
 	case ID_GAME_LOAD:
-		//load_game_config();
+		load();
 		draw_and_calc_overlay();
 		return;
 
@@ -636,88 +642,68 @@ void game::draw_score() {
 	ReleaseDC(m_main,main_context);
 }
 
+void game::save() {
+	
+	LPCWSTR iniFilePath = L"C:\\Users\\przem\\Pulpit\\save.ini";
+	wchar_t buffer[256];
+	HRESULT hr;
+	BOOL success = TRUE;
 
-/*
-void game::save_game_config() {
-	// Save the configuration to an INI file (e.g., "game_config.ini")
-	WritePrivateProfileString(L"GameConfig", L"WindowWidth", std::to_wstring(size.x).c_str(), L"game_config.ini");
-	WritePrivateProfileString(L"GameConfig", L"WindowHeight", std::to_wstring(size.y).c_str(), L"game_config.ini");
-	WritePrivateProfileString(L"GameConfig", L"ActualWindowWidth", std::to_wstring(actual_size.x).c_str(), L"game_config.ini");
-	WritePrivateProfileString(L"GameConfig", L"ActualWindowHeight", std::to_wstring(actual_size.y).c_str(), L"game_config.ini");
-	WritePrivateProfileString(L"GameConfig", L"Offset", std::to_wstring(offset).c_str(), L"game_config.ini");
+	hr = swprintf_s(buffer, 256, L"%d", score);
+	WritePrivateProfileString(L"Settings", L"Score", buffer, iniFilePath);
 
-	WritePrivateProfileString(L"GameConfig", L"EnemyPosX", std::to_wstring(enemy_pos.x).c_str(), L"game_config.ini");
-	WritePrivateProfileString(L"GameConfig", L"EnemyPosY", std::to_wstring(enemy_pos.y).c_str(), L"game_config.ini");
+	// Convert COLORREF to RGB string
+	StringCchPrintf(buffer, 256, L"%d,%d,%d", GetRValue(color), GetGValue(color), GetBValue(color));
+	WritePrivateProfileString(L"Settings", L"Color", buffer, iniFilePath);
 
-	WritePrivateProfileString(L"GameConfig", L"PlayerPosX", std::to_wstring(player_pos.x).c_str(), L"game_config.ini");
-	WritePrivateProfileString(L"GameConfig", L"PlayerPosY", std::to_wstring(player_pos.y).c_str(), L"game_config.ini");
+	// Write size (POINT) as X,Y
+	StringCchPrintf(buffer, 256, L"%ld,%ld", size.x, size.y);
+	WritePrivateProfileString(L"Settings", L"Size", buffer, iniFilePath);
 
-	WritePrivateProfileString(L"GameConfig", L"BackgroundImage", file_name, L"game_config.ini");
+	// Write file name
+	WritePrivateProfileString(L"Settings", L"FileName", file_name, iniFilePath);
 
-	WritePrivateProfileString(L"GameConfig", L"BitmapWidth", std::to_wstring(bitmap_info.bmWidth).c_str(), L"game_config.ini");
-	WritePrivateProfileString(L"GameConfig", L"BitmapHeight", std::to_wstring(bitmap_info.bmHeight).c_str(), L"game_config.ini");
-
-	WritePrivateProfileString(L"GameConfig", L"CenterImagePosX", std::to_wstring(center_image_pos.x).c_str(), L"game_config.ini");
-	WritePrivateProfileString(L"GameConfig", L"CenterImagePosY", std::to_wstring(center_image_pos.y).c_str(), L"game_config.ini");
-
-	WritePrivateProfileString(L"GameConfig", L"ImageType", std::to_wstring(image_type).c_str(), L"game_config.ini");
-	WritePrivateProfileString(L"GameConfig", L"Score", std::to_wstring(score).c_str(), L"game_config.ini");
+	// Write image type (int)
+	StringCchPrintf(buffer, 256, L"%d", static_cast<int>(image_type));
+	WritePrivateProfileString(L"Settings", L"ImageType", buffer, iniFilePath);
+	
 }
 
-// Method to load game configuration from an INI file
-void game::load_game_config() {
-	wchar_t buffer[MAX_PATH];
+void game::load() {
+	
+	wchar_t buffer[256];
+	LPCWSTR iniFilePath = L"C:\\Users\\przem\\Pulpit\\save.ini";
+	BOOL success = TRUE;
 
-	// Load window size
-	GetPrivateProfileString(L"GameConfig", L"WindowWidth", L"800", buffer, MAX_PATH, L"game_config.ini");
-	size.x = _wtoi(buffer);
-	GetPrivateProfileString(L"GameConfig", L"WindowHeight", L"600", buffer, MAX_PATH, L"game_config.ini");
-	size.y = _wtoi(buffer);
-
-	// Load actual window size
-	GetPrivateProfileString(L"GameConfig", L"ActualWindowWidth", L"800", buffer, MAX_PATH, L"game_config.ini");
-	actual_size.x = _wtoi(buffer);
-	GetPrivateProfileString(L"GameConfig", L"ActualWindowHeight", L"600", buffer, MAX_PATH, L"game_config.ini");
-	actual_size.y = _wtoi(buffer);
-
-	// Load offset
-	GetPrivateProfileString(L"GameConfig", L"Offset", L"30", buffer, MAX_PATH, L"game_config.ini");
-	offset = _wtoi(buffer);
-
-	// Load enemy position
-	GetPrivateProfileString(L"GameConfig", L"EnemyPosX", L"100", buffer, MAX_PATH, L"game_config.ini");
-	enemy_pos.x = _wtoi(buffer);
-	GetPrivateProfileString(L"GameConfig", L"EnemyPosY", L"100", buffer, MAX_PATH, L"game_config.ini");
-	enemy_pos.y = _wtoi(buffer);
-
-	// Load player position
-	GetPrivateProfileString(L"GameConfig", L"PlayerPosX", L"200", buffer, MAX_PATH, L"game_config.ini");
-	player_pos.x = _wtoi(buffer);
-	GetPrivateProfileString(L"GameConfig", L"PlayerPosY", L"200", buffer, MAX_PATH, L"game_config.ini");
-	player_pos.y = _wtoi(buffer);
-
-	// Load background image file path
-	GetPrivateProfileString(L"GameConfig", L"BackgroundImage", L"", file_name, MAX_PATH, L"game_config.ini");
-
-	// Load bitmap info (e.g., width and height)
-	GetPrivateProfileString(L"GameConfig", L"BitmapWidth", L"800", buffer, MAX_PATH, L"game_config.ini");
-	bitmap_info.bmWidth = _wtoi(buffer);
-	GetPrivateProfileString(L"GameConfig", L"BitmapHeight", L"600", buffer, MAX_PATH, L"game_config.ini");
-	bitmap_info.bmHeight = _wtoi(buffer);
-
-	// Load image position
-	GetPrivateProfileString(L"GameConfig", L"CenterImagePosX", L"-1", buffer, MAX_PATH, L"game_config.ini");
-	center_image_pos.x = _wtoi(buffer);
-	GetPrivateProfileString(L"GameConfig", L"CenterImagePosY", L"-1", buffer, MAX_PATH, L"game_config.ini");
-	center_image_pos.y = _wtoi(buffer);
-
-	// Load image type (Fit or other)
-	GetPrivateProfileString(L"GameConfig", L"ImageType", L"0", buffer, MAX_PATH, L"game_config.ini");
-	image_type = (ImageType)_wtoi(buffer);
-
-	// Load score
-	GetPrivateProfileString(L"GameConfig", L"Score", L"0", buffer, MAX_PATH, L"game_config.ini");
+	// Read Score
+	GetPrivateProfileString(L"Settings", L"Score", L"0", buffer, 256, iniFilePath);
 	score = _wtoi(buffer);
-}
 
-*/
+
+	// Read Color
+	GetPrivateProfileString(L"Settings", L"Color", L"0,0,0", buffer, 256, iniFilePath);
+	int r, g, b;
+	swscanf_s(buffer, L"%d,%d,%d", &r, &g, &b);
+	color = RGB(r, g, b);
+	m_background = CreateSolidBrush(color);
+
+
+	// Read Size
+	GetPrivateProfileString(L"Settings", L"Size", L"0,0", buffer, 256, iniFilePath);
+	swscanf_s(buffer, L"%ld,%ld", &size.x, &size.y);
+			
+
+	// Read FileName
+	GetPrivateProfileString(L"Settings", L"FileName", L"", file_name, MAX_PATH, iniFilePath);
+	main_background = (HBITMAP)LoadImage(NULL, file_name, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+	GetObject(main_background, sizeof(BITMAP), &bitmap_info);
+
+	// Read ImageType
+	GetPrivateProfileString(L"Settings", L"ImageType", L"0", buffer, 256, iniFilePath);
+	image_type = (ImageType)(_wtoi(buffer));
+
+
+	set_new_pos();
+	draw_and_calc_overlay();
+	
+}
