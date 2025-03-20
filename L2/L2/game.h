@@ -88,6 +88,12 @@ private:
 	ImageType image_type = Fit;//   -----
 	int score; //     -----
 
+
+	LPCWSTR iniFilePath = L"C:\\Users\\przem\\Pulpit\\save.ini"; ///////// uwaga tutaj
+
+	HWND end_window;
+	HWND text_end_window;
+
 	static LRESULT CALLBACK window_proc_static(
 		HWND window, UINT message,
 		WPARAM wparam, LPARAM lparam);
@@ -117,7 +123,19 @@ private:
 	void draw_score();
 	void save();
 	void load();
+
+	void on_game_end();
+	void create_and_show_end_window();
+	static LRESULT CALLBACK end_dialog_proc_st(
+		HWND window, UINT message,
+		WPARAM wparam, LPARAM lparam);
+	LRESULT CALLBACK end_dialog_proc(
+		HWND window, UINT message,
+		WPARAM wparam, LPARAM lparam);
 	/**/
+
+	LRESULT CALLBACK end_window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+	static LRESULT CALLBACK end_window_proc_st(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 public:
 	game(HINSTANCE instance);
 	int run(int show_command);

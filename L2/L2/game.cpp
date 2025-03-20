@@ -413,6 +413,7 @@ void game::on_command(WPARAM wparam) {
 		return;
 	case ID_SIZE_LARGE:
 		size = { 1000,800 };
+		on_game_end();
 		set_new_pos();
 
 		draw_and_calc_overlay();
@@ -437,7 +438,14 @@ void game::on_command(WPARAM wparam) {
 		return;
 	case ID_NEWGAME:
 
-
+		score = 0;
+		color = RGB(0, 0, 0);
+		size = { 800,600 };
+		image_type = Center;
+		file_name[0] = 0;
+		file_name[1] = 0;
+		main_background = NULL;
+		draw_and_calc_overlay();
 
 		return;
 	case ID_IMAGE_FILL:
@@ -474,7 +482,6 @@ void game::on_command(WPARAM wparam) {
 
 	case ID_GAME_LOAD:
 		load();
-		draw_and_calc_overlay();
 		return;
 
 
@@ -644,7 +651,6 @@ void game::draw_score() {
 
 void game::save() {
 	
-	LPCWSTR iniFilePath = L"C:\\Users\\przem\\Pulpit\\save.ini";
 	wchar_t buffer[256];
 	HRESULT hr;
 	BOOL success = TRUE;
@@ -652,18 +658,19 @@ void game::save() {
 	hr = swprintf_s(buffer, 256, L"%d", score);
 	WritePrivateProfileString(L"Settings", L"Score", buffer, iniFilePath);
 
-	// Convert COLORREF to RGB string
+
 	StringCchPrintf(buffer, 256, L"%d,%d,%d", GetRValue(color), GetGValue(color), GetBValue(color));
 	WritePrivateProfileString(L"Settings", L"Color", buffer, iniFilePath);
 
-	// Write size (POINT) as X,Y
 	StringCchPrintf(buffer, 256, L"%ld,%ld", size.x, size.y);
 	WritePrivateProfileString(L"Settings", L"Size", buffer, iniFilePath);
 
-	// Write file name
+
+
 	WritePrivateProfileString(L"Settings", L"FileName", file_name, iniFilePath);
 
-	// Write image type (int)
+
+
 	StringCchPrintf(buffer, 256, L"%d", static_cast<int>(image_type));
 	WritePrivateProfileString(L"Settings", L"ImageType", buffer, iniFilePath);
 	
@@ -672,15 +679,13 @@ void game::save() {
 void game::load() {
 	
 	wchar_t buffer[256];
-	LPCWSTR iniFilePath = L"C:\\Users\\przem\\Pulpit\\save.ini";
 	BOOL success = TRUE;
 
-	// Read Score
+
 	GetPrivateProfileString(L"Settings", L"Score", L"0", buffer, 256, iniFilePath);
 	score = _wtoi(buffer);
 
 
-	// Read Color
 	GetPrivateProfileString(L"Settings", L"Color", L"0,0,0", buffer, 256, iniFilePath);
 	int r, g, b;
 	swscanf_s(buffer, L"%d,%d,%d", &r, &g, &b);
@@ -688,22 +693,120 @@ void game::load() {
 	m_background = CreateSolidBrush(color);
 
 
-	// Read Size
 	GetPrivateProfileString(L"Settings", L"Size", L"0,0", buffer, 256, iniFilePath);
 	swscanf_s(buffer, L"%ld,%ld", &size.x, &size.y);
 			
 
-	// Read FileName
+
+
 	GetPrivateProfileString(L"Settings", L"FileName", L"", file_name, MAX_PATH, iniFilePath);
 	main_background = (HBITMAP)LoadImage(NULL, file_name, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 	GetObject(main_background, sizeof(BITMAP), &bitmap_info);
 
-	// Read ImageType
+
 	GetPrivateProfileString(L"Settings", L"ImageType", L"0", buffer, 256, iniFilePath);
 	image_type = (ImageType)(_wtoi(buffer));
+
+	switch (image_type) {
+	case 0:
+		PostMessage(m_main, WM_COMMAND, ID_IMAGE_CENTER, 0);
+		break;
+	case 1:
+		PostMessage(m_main, WM_COMMAND, ID_IMAGE_FILL, 0);
+		break;
+	case 2:
+		PostMessage(m_main, WM_COMMAND, ID_IMAGE_TILE, 0);
+		break;
+	case 3:
+		PostMessage(m_main, WM_COMMAND, ID_IMAGE_FIT, 0);
+		break;
+
+	}
 
 
 	set_new_pos();
 	draw_and_calc_overlay();
 	
+}
+
+
+
+void game::on_game_end() {
+	create_and_show_end_window();
+}
+
+void game::create_and_show_end_window() {
+
+
+	end_window = CreateWindowEx(
+		0,
+		L"EDIT",
+		nullptr, ///  brak nazwy klasy sprawia ze okno powstaje z puli gotowych   czyli basic wyglad
+		WS_VISIBLE | SS_CENTER | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+
+		/// CHILD czyli nie wychodzi poza ramke?,       WS_VISIBLE okno poajawi sie bez show window     
+		// CENTER  wyrownanie tekstu w oknie poziomo  do centrum
+		CW_USEDEFAULT, 0,// pozycja
+		50, 100, // rozmair pionowo
+		m_main,
+		nullptr,
+		m_instance, /// klasa obslugujaca polecenia to tez glowna
+		nullptr);
+
+	if (end_window == NULL)
+		return;
+	SetWindowText(end_window, L"Podaj imie");
+
+	ShowWindow(end_window, SW_SHOW);
+
+	
+
+}
+
+LRESULT CALLBACK game::end_window_proc_st(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
+	game* app = nullptr;
+	if (message == WM_NCCREATE) // non user creation       wiadomosc wysylana po stworzeniu okna lparam to wskaznik do struktury
+	{
+		auto p = reinterpret_cast<LPCREATESTRUCTW>(lparam); // konwersja do struktury
+		app = static_cast<game*>(p->lpCreateParams); // instancja klasy   bedzie w tej strukturze jesli byla podona ptrzy tworzeniu okna
+		SetWindowLongPtrW(window, GWLP_USERDATA, /// przypisanie instancji klasy do handla okna
+			reinterpret_cast<LONG_PTR>(app));
+	}
+	else
+	{
+		app = reinterpret_cast<game*>(
+			GetWindowLongPtrW(window, GWLP_USERDATA)); // pobranie instancji klasy
+	}
+
+	if (app != nullptr)
+	{
+		return app->window_proc(window, message, /// podanie wiadomosci dalej do nie statycznej metody
+			wparam, lparam);
+	}
+	return DefWindowProcW(window, message, wparam, lparam);
+}
+
+
+LRESULT CALLBACK game::end_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+{
+	switch (message)
+	{
+	case WM_CREATE:
+		// Create an EDIT control inside the window
+		text_end_window = CreateWindowEx(
+			0, L"EDIT", L"",
+			WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL,
+			10, 10, 460, 200,
+			window, (HMENU)1, (HINSTANCE)GetWindowLongPtr(window, GWLP_HINSTANCE), NULL
+		);
+		break;
+
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return 0;
+
+	default:
+		return DefWindowProc(window, message, wparam, lparam);
+	}
+	return 0;
 }
