@@ -147,6 +147,11 @@ LRESULT game::window_proc( /// procedura nie statyczna
 	case WM_PAINT:
 
 		return DefWindowProcW(window, message, wparam, lparam);
+	case WM_NAME:
+		HWND htext = GetDlgItem(end_window, ID_TEXT);
+		GetWindowText(htext, name, 100);
+		EndDialog(end_window, 0);
+		return 0;
 		
 
 		//case WM_CTLCOLORSTATIC: //kiedy cos ma byc narysowane
@@ -199,7 +204,7 @@ game::game(HINSTANCE instance) // instancja jest podawna przy wywolaniu tego smi
 
 	register_class();
 	m_main = create_window();
-
+	load();
 
 
 	RECT rect;
@@ -413,7 +418,6 @@ void game::on_command(WPARAM wparam) {
 		return;
 	case ID_SIZE_LARGE:
 		size = { 1000,800 };
-		on_game_end();
 		set_new_pos();
 
 		draw_and_calc_overlay();
@@ -484,7 +488,9 @@ void game::on_command(WPARAM wparam) {
 		load();
 		return;
 
-
+	case ID_GAME_END:
+		on_game_end();
+		return;
 	}
 }
 
@@ -674,6 +680,9 @@ void game::save() {
 	StringCchPrintf(buffer, 256, L"%d", static_cast<int>(image_type));
 	WritePrivateProfileString(L"Settings", L"ImageType", buffer, iniFilePath);
 	
+
+
+	WritePrivateProfileString(L"Settings", L"PlayerName", name, iniFilePath);
 }
 
 void game::load() {
@@ -724,6 +733,8 @@ void game::load() {
 	}
 
 
+	GetPrivateProfileString(L"Settings", L"PlayerName", L"", name, 100, iniFilePath);
+
 	set_new_pos();
 	draw_and_calc_overlay();
 	
@@ -737,76 +748,48 @@ void game::on_game_end() {
 
 void game::create_and_show_end_window() {
 
+	end_window = CreateDialog(m_instance, MAKEINTRESOURCE(ID_DIALOG), m_main, end_window_proc);
+	HWND hScore = GetDlgItem(end_window, ID_SCORE);
+	if (hScore)
+	{
+		wchar_t score_text[100];
+		swprintf(score_text, 100, L"Score: %d", score); 
+		SetWindowText(hScore, score_text);  
+	}
 
-	end_window = CreateWindowEx(
-		0,
-		L"EDIT",
-		nullptr, ///  brak nazwy klasy sprawia ze okno powstaje z puli gotowych   czyli basic wyglad
-		WS_VISIBLE | SS_CENTER | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+	HWND hname = GetDlgItem(end_window, ID_NAME);
+	if (hname)
+	{
+		wchar_t name_text[100];
+		swprintf(name_text, 100, L"Hello %s", name);  
+		SetWindowText(hname, name_text); 
+	}
 
-		/// CHILD czyli nie wychodzi poza ramke?,       WS_VISIBLE okno poajawi sie bez show window     
-		// CENTER  wyrownanie tekstu w oknie poziomo  do centrum
-		CW_USEDEFAULT, 0,// pozycja
-		50, 100, // rozmair pionowo
-		m_main,
-		nullptr,
-		m_instance, /// klasa obslugujaca polecenia to tez glowna
-		nullptr);
-
-	if (end_window == NULL)
-		return;
-	SetWindowText(end_window, L"Podaj imie");
 
 	ShowWindow(end_window, SW_SHOW);
-
-	
-
 }
 
-LRESULT CALLBACK game::end_window_proc_st(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
-	game* app = nullptr;
-	if (message == WM_NCCREATE) // non user creation       wiadomosc wysylana po stworzeniu okna lparam to wskaznik do struktury
-	{
-		auto p = reinterpret_cast<LPCREATESTRUCTW>(lparam); // konwersja do struktury
-		app = static_cast<game*>(p->lpCreateParams); // instancja klasy   bedzie w tej strukturze jesli byla podona ptrzy tworzeniu okna
-		SetWindowLongPtrW(window, GWLP_USERDATA, /// przypisanie instancji klasy do handla okna
-			reinterpret_cast<LONG_PTR>(app));
-	}
-	else
-	{
-		app = reinterpret_cast<game*>(
-			GetWindowLongPtrW(window, GWLP_USERDATA)); // pobranie instancji klasy
-	}
+INT_PTR game::end_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam){
+	HWND main;
+	 switch (message)
+     {
+     case WM_INITDIALOG :
+          return TRUE ;
+          
+		 
+     case WM_COMMAND :
+          switch (LOWORD (wparam))
+          {
+          case IDOK :
+			main = GetParent(window);
+			 PostMessage(main, WM_NAME, (WPARAM)window, 0);
 
-	if (app != nullptr)
-	{
-		return app->window_proc(window, message, /// podanie wiadomosci dalej do nie statycznej metody
-			wparam, lparam);
-	}
-	return DefWindowProcW(window, message, wparam, lparam);
-}
-
-
-LRESULT CALLBACK game::end_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-	switch (message)
-	{
-	case WM_CREATE:
-		// Create an EDIT control inside the window
-		text_end_window = CreateWindowEx(
-			0, L"EDIT", L"",
-			WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL,
-			10, 10, 460, 200,
-			window, (HMENU)1, (HINSTANCE)GetWindowLongPtr(window, GWLP_HINSTANCE), NULL
-		);
-		break;
-
-	case WM_DESTROY:
-		PostQuitMessage(0);
-		return 0;
-
-	default:
-		return DefWindowProc(window, message, wparam, lparam);
-	}
-	return 0;
+             return TRUE ;
+		  case IDCANCEL:
+			  EndDialog(window, 0);
+			  return TRUE;
+          }
+          break ;
+     }
+     return FALSE ;
 }

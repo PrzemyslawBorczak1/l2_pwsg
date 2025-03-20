@@ -16,7 +16,7 @@
 
 
 #include <strsafe.h>
-
+#define WM_NAME (WM_USER + 1) // Custom message to send text
 class game
 {
 private:
@@ -92,7 +92,8 @@ private:
 	LPCWSTR iniFilePath = L"C:\\Users\\przem\\Pulpit\\save.ini"; ///////// uwaga tutaj
 
 	HWND end_window;
-	HWND text_end_window;
+
+	wchar_t name[100];
 
 	static LRESULT CALLBACK window_proc_static(
 		HWND window, UINT message,
@@ -125,17 +126,14 @@ private:
 	void load();
 
 	void on_game_end();
-	void create_and_show_end_window();
-	static LRESULT CALLBACK end_dialog_proc_st(
-		HWND window, UINT message,
-		WPARAM wparam, LPARAM lparam);
-	LRESULT CALLBACK end_dialog_proc(
-		HWND window, UINT message,
-		WPARAM wparam, LPARAM lparam);
+	void create_and_show_end_window();/*
 	/**/
 
-	LRESULT CALLBACK end_window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-	static LRESULT CALLBACK end_window_proc_st(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+	static INT_PTR CALLBACK end_window_proc(
+		HWND window, UINT message,
+		WPARAM wparam, LPARAM lparam);
+
 public:
 	game(HINSTANCE instance);
 	int run(int show_command);
