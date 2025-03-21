@@ -14,7 +14,7 @@ bool game::register_class() {// rejestrowanie klasy czyli zapisanie co bedzie ob
 	.lpfnWndProc = window_proc_static, // statyczna funkcja obslugi wiadomosci funkcja	!!!
 	.hInstance = m_instance,     // instantcja klasy					!!!
 
-	.hCursor = LoadCursorW(nullptr, L"IDC_ARROW"), // ladowanie kursora strzalka
+	.hCursor = LoadCursorW(nullptr, IDC_ARROW), // ladowanie kursora strzalka
 	.hbrBackground = m_background, // tlo okienka   cos moze sie psuc jak sie tego nie ustawi
 
 	.lpszMenuName = MAKEINTRESOURCEW(ID_MAINMENU), 
@@ -409,7 +409,7 @@ bool game::check_bullet(POINT bullet) {
 void game::destroy_window(int i, int j) {
 	/////
 
-	//MoveWindow(enemies[i][j], -100, -100, 0, 0, true);
+	//MoveWindow(enemies[i][j], 1000, 1000, 1, 1, true);
 	DestroyWindow(enemies[i][j]);
 	enemies_pos[i][j] = {0,0};
 	enemies[i][j] = NULL;
@@ -517,14 +517,7 @@ void game::on_command(WPARAM wparam) {
 	case ID_NEWGAME:
 
 		score = 0;
-		color = RGB(255, 255, 255);
-		m_background = HBRUSH(color);
-		size = { 800,600 };
-		image_type = Center;
-		file_name[0] = 0;
-		file_name[1] = 0;
-		main_background = NULL;
-
+		endgame = 0;
 		for (int i = 0; i < ENEM_NB_ROW; i++) {
 			for (int j = 0; j < ENEM_NB_COL; j++) {
 				enemies_pos[i][j] = { start_enemies.x + j * (enemy_size.x + ENEM_MARG),   start_enemies.y + i * (enemy_size.y + ENEM_MARG) };
@@ -740,8 +733,6 @@ void game::save() {
 	HRESULT hr;
 	BOOL success = TRUE;
 
-	hr = swprintf_s(buffer, 256, L"%d", score);
-	WritePrivateProfileString(L"Settings", L"Score", buffer, iniFilePath);
 
 
 	StringCchPrintf(buffer, 256, L"%d,%d,%d", GetRValue(color), GetGValue(color), GetBValue(color));
@@ -764,19 +755,6 @@ void game::save() {
 	WritePrivateProfileString(L"Settings", L"PlayerName", name, iniFilePath);
 
 
-	for (int i = 0; i < ENEM_NB_ROW; i++ ) {
-		for (int j = 0; j < ENEM_NB_COL; j++) {
-			const POINT& pos = enemies_pos[i][j];
-
-			wchar_t key[64];
-			StringCchPrintf(key, 64, L"Enemy_%d_%d", i, j);
-
-			StringCchPrintf(buffer, 256, L"%ld,%ld", pos.x, pos.y);
-
-			WritePrivateProfileString(L"Enemies", key, buffer, iniFilePath);
-		}
-	}
-
 }
 
 void game::load() {
@@ -784,9 +762,6 @@ void game::load() {
 	wchar_t buffer[256];
 	BOOL success = TRUE;
 
-
-	GetPrivateProfileString(L"Settings", L"Score", L"0", buffer, 256, iniFilePath);
-	score = _wtoi(buffer);
 
 
 	GetPrivateProfileString(L"Settings", L"Color", L"0,0,0", buffer, 256, iniFilePath);
@@ -828,48 +803,7 @@ void game::load() {
 
 
 	GetPrivateProfileString(L"Settings", L"PlayerName", L"", name, 100, iniFilePath);
-
-
-	for (int i = 0; i < ENEM_NB_ROW; i++) {
-		for (int j = 0; j < ENEM_NB_COL; j++) {
-
-			wchar_t key[64];
-			StringCchPrintf(key, 64, L"Enemy_%d_%d", i, j);
-
-			GetPrivateProfileString(L"Enemies", key, L"0,0", buffer, 256, iniFilePath);
-
-			int x = 0, y = 0;
-			swscanf_s(buffer, L"%ld,%ld", &x, &y);
-
-			if (x == 0 && y == 0)
-				destroy_window(i,j);
-			else {
-				if (enemies[i][j] == NULL)
-					enemies[i][j] = CreateWindowExW(
-						0,
-						L"STATIC",
-						nullptr, ///  brak nazwy klasy sprawia ze okno powstaje z puli gotowych   czyli basic wyglad
-						WS_CHILD | WS_VISIBLE | SS_CENTER,
-						/// CHILD czyli nie wychodzi poza ramke?,       WS_VISIBLE okno poajawi sie bez show window     
-						// CENTER  wyrownanie tekstu w oknie poziomo  do centrum
-						x, y,// pozycja
-						enemy_size.x, // rozmiar poziomo
-						enemy_size.y, // rozmair pionowo
-						m_main,
-						nullptr,
-						m_instance, /// klasa obslugujaca polecenia to tez glowna
-						nullptr);
-				else
-					MoveWindow(enemies[i][j], x, y, 0, 0, true);
-			}
-				
-
-
-			enemies_pos[i][j].x = x;
-			enemies_pos[i][j].y = y;
-		}
-	}
-
+	
 	set_new_pos();
 	draw_and_calc_overlay();
 	

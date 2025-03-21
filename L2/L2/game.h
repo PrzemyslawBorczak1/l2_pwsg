@@ -18,8 +18,8 @@
 
 #include <strsafe.h>
 #define WM_NAME (WM_USER + 1)
-#define ENEM_NB_ROW 3
-#define ENEM_NB_COL 9
+#define ENEM_NB_ROW 4
+#define ENEM_NB_COL 7
 #define ENEM_MARG 10
 
 class game
