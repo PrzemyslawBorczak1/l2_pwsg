@@ -459,6 +459,8 @@ void game::draw_sprite_enemy() {
 
 	for (int i = 0; i < ENEM_NB_ROW; i++) {
 		for (int j = 0; j < ENEM_NB_COL; j++) {
+			if (enemies[i][j] == NULL)
+				continue;
 			auto enemy_ct = GetDC(enemies[i][j]);
 			BitBlt(enemy_ct, 0, 0, enemy_size.x, enemy_size.y, context_bitmap, enemy_animation * enemy_size.x, 0, SRCCOPY);
 
