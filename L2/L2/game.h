@@ -3,7 +3,8 @@
 #include <string>
 #include <chrono>
 #include <iostream>
-#include <list>
+#include <queue>
+#include <stack>
 #include "resource.h"
 #include <Commdlg.h>
 #include "ImageType.h"
@@ -16,7 +17,11 @@
 
 
 #include <strsafe.h>
-#define WM_NAME (WM_USER + 1) // Custom message to send text
+#define WM_NAME (WM_USER + 1)
+#define ENEM_NB_ROW 3
+#define ENEM_NB_COL 9
+#define ENEM_MARG 10
+
 class game
 {
 private:
@@ -45,6 +50,7 @@ private:
 	int top;
 
 	int enemy_status = 0;
+	int enemy_moves = 0;
 	
 	POINT size = { 800,600 };  //     -------
 	POINT enemy_size = { 50, 40 };
@@ -53,16 +59,25 @@ private:
 
 	POINT actual_size; //  policzyc
 	int offset = 30;
+	int moves_goal = ENEM_NB_COL * ((enemy_size.x / offset) - 5);
 	
-	POINT enemy_pos;// 
+	POINT start_enemies;
+//	POINT enemy_pos;// 
+
+	POINT enemies_pos[ENEM_NB_ROW][ENEM_NB_COL];
 	POINT player_pos;//
 
+	POINT enemies_pos_bottom[ENEM_NB_COL];
+	HWND enemies_bottom[ENEM_NB_COL];
 
 	HWND player;
-	HWND enemy;
+//	HWND enemy;
+	HWND enemies[ENEM_NB_ROW][ENEM_NB_COL];
 
-	std::list<HWND> bullets;
-	std::list<POINT> positions;
+
+	std::queue<HWND> bullets;
+	std::queue<POINT> positions;
+	int bullet_counter = 0;
 
 	HBITMAP player_sprite_bitmap;
 	HBITMAP enemy_sprite_bitmap;
@@ -92,6 +107,7 @@ private:
 	LPCWSTR iniFilePath = L"C:\\Users\\przem\\Pulpit\\save.ini"; ///////// uwaga tutaj
 
 	HWND end_window;
+	int endgame = 0;
 
 	wchar_t name[100];
 
@@ -111,6 +127,8 @@ private:
 	void on_timer(WPARAM wparam);
 	void move_enemy();
 	void move_bullets();
+	bool check_bullet(POINT bullet);
+	void destroy_window(int i, int j);
 	void create_bullet();
 
 	void draw_sprite_player();
@@ -126,8 +144,8 @@ private:
 	void load();
 
 	void on_game_end();
-	void create_and_show_end_window();/*
-	/**/
+	void create_and_show_end_window();
+	
 
 
 	static INT_PTR CALLBACK end_window_proc(

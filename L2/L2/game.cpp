@@ -48,23 +48,30 @@ HWND game::create_window()
 
 	SetLayeredWindowAttributes(m_main, 0, 255, LWA_ALPHA);
 
+	start_enemies ={ (size.x - enemy_size.x) / 2  - (ENEM_NB_COL / 2) * (enemy_size.x + ENEM_MARG ),  enemy_size.y - 20 };// nie do konca dobrze liczone
 
-	enemy_pos = { (size.x - enemy_size.x) / 2 ,  enemy_size.y - 20 };
-	enemy = CreateWindowExW(
-		0,
-		L"STATIC",
-		nullptr, ///  brak nazwy klasy sprawia ze okno powstaje z puli gotowych   czyli basic wyglad
-		WS_CHILD | WS_VISIBLE | SS_CENTER,
-		/// CHILD czyli nie wychodzi poza ramke?,       WS_VISIBLE okno poajawi sie bez show window     
-		// CENTER  wyrownanie tekstu w oknie poziomo  do centrum
-		enemy_pos.x, enemy_pos.y,// pozycja
-		enemy_size.x, // rozmiar poziomo
-		enemy_size.y, // rozmair pionowo
-		window,
-		nullptr,
-		m_instance, /// klasa obslugujaca polecenia to tez glowna
-		nullptr);
+	for (int i = 0; i < ENEM_NB_ROW; i++) {
+		for (int j = 0; j < ENEM_NB_COL; j++) {
+			enemies_pos[i][j] = { start_enemies.x + j * (enemy_size.x + ENEM_MARG),   start_enemies.y + i * (enemy_size.y + ENEM_MARG) };
+			enemies[i][j] = CreateWindowExW(
+				0,
+				L"STATIC",
+				nullptr, ///  brak nazwy klasy sprawia ze okno powstaje z puli gotowych   czyli basic wyglad
+				WS_CHILD | WS_VISIBLE | SS_CENTER,
+				/// CHILD czyli nie wychodzi poza ramke?,       WS_VISIBLE okno poajawi sie bez show window     
+				// CENTER  wyrownanie tekstu w oknie poziomo  do centrum
+				enemies_pos[i][j].x, enemies_pos[i][j].y,// pozycja
+				enemy_size.x, // rozmiar poziomo
+				enemy_size.y, // rozmair pionowo
+				window,
+				nullptr,
+				m_instance, /// klasa obslugujaca polecenia to tez glowna
+				nullptr);
 
+		}
+	}
+
+	
 
 	player_pos = { (size.x - player_size.x) / 2, size.y - 2 * player_size.y - 20 };
 	player = CreateWindowExW(
@@ -220,8 +227,8 @@ int game::run(int show_command) // show zommand tez arg z maina jak ma sie stwor
 	ShowWindow(m_main, show_command); /// pokazanie okna powikeszenie i gueess
 	SetTimer(m_main, s_timer, 1000, nullptr); /// 1000 ms
 
-	SetTimer(m_main, bullet_timer, 15, nullptr); /// 1000 ms
-	SetTimer(m_main, player_sprite_timer, 100, nullptr); /// 1000 ms
+	SetTimer(m_main, bullet_timer, 50, nullptr); /// 1000 ms
+	SetTimer(m_main, player_sprite_timer, 40, nullptr); /// 1000 ms
 
 	SetTimer(m_main, enemy_sprite_timer, 50, nullptr); /// 1000 ms
 
@@ -256,7 +263,7 @@ void game::on_activ(WPARAM wparam) {
 
 }
 
-INT_PTR game::on_colorstatic(LPARAM lparam) {
+INT_PTR game::on_colorstatic(LPARAM lparam) {///////////
 	/*if ((HWND)lparam == enemy)
 		return reinterpret_cast<INT_PTR>(enemy_brush);
 	else if((HWND)lparam == player)
@@ -265,12 +272,12 @@ INT_PTR game::on_colorstatic(LPARAM lparam) {
 		return reinterpret_cast<INT_PTR>(bullet_brush);*/
 
 
-	if ((HWND)lparam != player && (HWND)lparam != enemy)
-
+	//if ((HWND)lparam != player && (HWND)lparam != enemy)
+	if((HWND)lparam != m_main)
 		return reinterpret_cast<INT_PTR>(bullet_brush);
 
-	if ((HWND)lparam == enemy)
-		return reinterpret_cast<INT_PTR>(enemy_brush);
+	//if ((HWND)lparam == enemy)
+		//return reinterpret_cast<INT_PTR>(enemy_brush);
 
 }
 
@@ -319,42 +326,98 @@ void game::on_timer(WPARAM wparam) {
 
 void game::move_enemy() {
 	if (0 == enemy_status) {
-		enemy_pos.x -= 25;
-		MoveWindow(enemy, enemy_pos.x, enemy_pos.y, enemy_size.x, enemy_size.y, true);
+		for (int i = 0; i < ENEM_NB_ROW; i++) {
+			for (int j = 0; j < ENEM_NB_COL; j++) {
+				if (enemies[i][j] == NULL)
+					continue;
+				enemies_pos[i][j].x -= 25;
+				MoveWindow(enemies[i][j], enemies_pos[i][j].x, enemies_pos[i][j].y, enemy_size.x, enemy_size.y, true);
+
+			}
+		}
 		enemy_status = 1;
 	}
 	else if (1 == enemy_status) {
+		for (int i = 0; i < ENEM_NB_ROW; i++) {
+			for (int j = 0; j < ENEM_NB_COL; j++) {
+				if (enemies[i][j] == NULL)
+					continue;
+				enemies_pos[i][j].x += 25;
+				MoveWindow(enemies[i][j], enemies_pos[i][j].x, enemies_pos[i][j].y, enemy_size.x, enemy_size.y, true);
 
-		enemy_pos.x += 25;
-		MoveWindow(enemy, enemy_pos.x, enemy_pos.y, enemy_size.x, enemy_size.y, true);
+			}
+		}
+
 		enemy_status = 0;
 	}
 }
 
 void game::move_bullets() {
 
-	auto it_pos = positions.begin();
-	for (auto it_bullets = bullets.begin(); it_bullets != bullets.end(); ++it_bullets, ++it_pos) {
-		(*it_pos).y -= offset;
-		if ((*it_pos).y <= 0) {
-			DestroyWindow(*it_bullets);
+	for(int l = 0; l < bullet_counter; l++){
+		POINT it_pos = positions.front();
+		positions.pop();
+
+		it_pos.y -= offset;
+
+		HWND it_bullets = bullets.front();
+		bullets.pop();
+
+
+
+		if (it_pos.y <= 0) {
+			DestroyWindow(it_bullets);
+			bullet_counter--;
 			continue;
 		}
-		if ((*it_pos).x >= enemy_pos.x && 
-			(*it_pos).x <= enemy_pos.x + enemy_size.x &&
-			(*it_pos).y <= enemy_pos.y) {
-			DestroyWindow(*it_bullets);
+
+		if (!check_bullet(it_pos)) {
+			DestroyWindow(it_bullets);
 			score++;
+			bullet_counter--;
 			draw_score();
 			continue;
 		}
-		MoveWindow(*it_bullets, (*it_pos).x,(*it_pos).y, bullet_size.x, bullet_size.y, true);
+
+
+		positions.push(it_pos);
+		bullets.push(it_bullets);
+
+		MoveWindow(it_bullets, it_pos.x, it_pos.y, bullet_size.x, bullet_size.y, true);
+		
 	}
 }
 
+bool game::check_bullet(POINT bullet) {
+	for (int i = ENEM_NB_ROW - 1; i >= 0; i--) {
+		for (int j = 0; j < ENEM_NB_COL; j++) {
+			if (enemies[i][j] == NULL)
+				continue;
+
+			if (bullet.y <= enemies_pos[i][j].y + enemy_size.y &&
+				bullet.x >= enemies_pos[i][j].x &&
+				bullet.x <= enemies_pos[i][j].x + enemy_size.x)
+			{
+				destroy_window(i, j);
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+void game::destroy_window(int i, int j) {
+	/////
+
+	//MoveWindow(enemies[i][j], -100, -100, 0, 0, true);
+	DestroyWindow(enemies[i][j]);
+	enemies_pos[i][j] = {0,0};
+	enemies[i][j] = NULL;
+}
 void game::create_bullet() {
-	positions.push_back({ player_pos.x + player_size.x / 2, player_pos.y - bullet_size.y });
-	bullets.push_back(CreateWindowExW(
+	positions.push({ player_pos.x + player_size.x / 2, player_pos.y - bullet_size.y });
+	bullet_counter++;
+	bullets.push(CreateWindowExW(
 		0,
 		L"STATIC",
 		nullptr, ///  brak nazwy klasy sprawia ze okno powstaje z puli gotowych   czyli basic wyglad
@@ -385,18 +448,29 @@ void game::draw_sprite_player() {
 
 }
 void game::draw_sprite_enemy() {
-	HDC window = GetDC(enemy);
-	HDC context_bitmap = CreateCompatibleDC(window);
 
+
+	HDC window = GetDC(enemies[0][0]); //////////////
+	HDC context_bitmap = CreateCompatibleDC(window);
 	HBITMAP oldBitmap = reinterpret_cast<HBITMAP>(SelectObject(context_bitmap, enemy_sprite_bitmap));
 
 
-	BitBlt(window, 0, 0, enemy_size.x, enemy_size.y, context_bitmap, enemy_animation * enemy_size.x, 0, SRCCOPY);
 
 
+	for (int i = 0; i < ENEM_NB_ROW; i++) {
+		for (int j = 0; j < ENEM_NB_COL; j++) {
+			auto enemy_ct = GetDC(enemies[i][j]);
+			BitBlt(enemy_ct, 0, 0, enemy_size.x, enemy_size.y, context_bitmap, enemy_animation * enemy_size.x, 0, SRCCOPY);
+
+			ReleaseDC(enemies[i][j], enemy_ct);
+		}
+	}
+
+	ReleaseDC(enemies[0][0], window);
 	SelectObject(context_bitmap, oldBitmap);
 	DeleteDC(context_bitmap);
-	ReleaseDC(enemy, window);
+
+	
 
 }
 
@@ -405,7 +479,7 @@ void game::on_command(WPARAM wparam) {
 
 	switch (LOWORD(wparam)) {
 	case ID_SIZE_SMALL:
-		size = { 400,300 };
+		size = { 600,400 };
 		set_new_pos();
 
 		draw_and_calc_overlay();
@@ -443,12 +517,42 @@ void game::on_command(WPARAM wparam) {
 	case ID_NEWGAME:
 
 		score = 0;
-		color = RGB(0, 0, 0);
+		color = RGB(255, 255, 255);
+		m_background = HBRUSH(color);
 		size = { 800,600 };
 		image_type = Center;
 		file_name[0] = 0;
 		file_name[1] = 0;
 		main_background = NULL;
+
+		for (int i = 0; i < ENEM_NB_ROW; i++) {
+			for (int j = 0; j < ENEM_NB_COL; j++) {
+				enemies_pos[i][j] = { start_enemies.x + j * (enemy_size.x + ENEM_MARG),   start_enemies.y + i * (enemy_size.y + ENEM_MARG) };
+				if (enemies[i][j] != NULL)
+					DestroyWindow(enemies[i][j]);
+
+
+				enemies[i][j] = CreateWindowExW(
+				0,
+				L"STATIC",
+				nullptr, ///  brak nazwy klasy sprawia ze okno powstaje z puli gotowych   czyli basic wyglad
+				WS_CHILD | WS_VISIBLE | SS_CENTER,
+				/// CHILD czyli nie wychodzi poza ramke?,       WS_VISIBLE okno poajawi sie bez show window     
+				// CENTER  wyrownanie tekstu w oknie poziomo  do centrum
+				enemies_pos[i][j].x, enemies_pos[i][j].y,// pozycja
+				enemy_size.x, // rozmiar poziomo
+				enemy_size.y, // rozmair pionowo
+				m_main,
+				nullptr,
+				m_instance, /// klasa obslugujaca polecenia to tez glowna
+				nullptr);
+				
+
+			}
+		}
+
+
+
 		draw_and_calc_overlay();
 
 		return;
@@ -502,12 +606,17 @@ void game::set_new_pos() {
 
 	player_pos = { (size.x - player_size.x) / 2, size.y - 2 * player_size.y - 20 };
 
-	enemy_pos = { (size.x - enemy_size.x) / 2 ,  enemy_size.y - 20 };
+	start_enemies = { (size.x - enemy_size.x) / 2 - (ENEM_NB_COL / 2) * (enemy_size.x + ENEM_MARG) ,  enemy_size.y - 20 };
 
 	MoveWindow(m_main, left, top, size.x, size.y, true);
 	MoveWindow(player, player_pos.x, player_pos.y, player_size.x, player_size.y, true);
-	MoveWindow(enemy, enemy_pos.x, enemy_pos.y, enemy_size.x, enemy_size.y, true);
 
+	for (int i = 0; i < ENEM_NB_ROW; i++) {
+		for (int j = 0; j < ENEM_NB_COL; j++) {
+			enemies_pos[i][j] = { start_enemies.x + j * (enemy_size.x + ENEM_MARG),   start_enemies.y + i * (enemy_size.y + ENEM_MARG) };
+			MoveWindow(enemies[i][j], enemies_pos[i][j].x, enemies_pos[i][j].y, enemy_size.x, enemy_size.y, true);
+		}
+	}
 
 	RECT rect;
 	GetClientRect(m_main, &rect);
@@ -515,41 +624,6 @@ void game::set_new_pos() {
 	actual_size.y = rect.bottom - rect.top;
 
 }
-
-/**
-void game::background_color() {
-	
-	HDC main_context = GetDC(m_main);
-	
-	RECT clientRect;
-	GetClientRect(m_main, &clientRect);
-
-	FillRect(main_context, &clientRect, m_background);
-
-	ReleaseDC(m_main, main_context);
-}
-
-
-void game::background_image() {
-
-	
-
-	HDC main_context = GetDC(m_main);
-	HDC context_bitmap = CreateCompatibleDC(main_context);
-
-	DeleteObject(SelectObject(context_bitmap, main_background));
-
-
-
-	BitBlt(main_context, image_pos.x, image_pos.y, size.x, size.y, context_bitmap, 0, 0, SRCCOPY);////////////
-
-	DeleteDC(context_bitmap);
-	ReleaseDC(player, main_context);
-}
-
-
-*/
-
 
 void game::draw_and_calc_overlay() {
 
@@ -646,6 +720,11 @@ void game::calc_image_pos() {
 
 void game::draw_score() {
 	HDC main_context = GetDC(m_main);
+	if (score == ENEM_NB_COL * ENEM_NB_ROW && endgame == 0) {
+		on_game_end();
+		endgame = 1;
+		return;
+	}
 
 	wchar_t buffer[10];
 	swprintf(buffer, 10, L"%d", score);
@@ -683,6 +762,21 @@ void game::save() {
 
 
 	WritePrivateProfileString(L"Settings", L"PlayerName", name, iniFilePath);
+
+
+	for (int i = 0; i < ENEM_NB_ROW; i++ ) {
+		for (int j = 0; j < ENEM_NB_COL; j++) {
+			const POINT& pos = enemies_pos[i][j];
+
+			wchar_t key[64];
+			StringCchPrintf(key, 64, L"Enemy_%d_%d", i, j);
+
+			StringCchPrintf(buffer, 256, L"%ld,%ld", pos.x, pos.y);
+
+			WritePrivateProfileString(L"Enemies", key, buffer, iniFilePath);
+		}
+	}
+
 }
 
 void game::load() {
@@ -735,12 +829,51 @@ void game::load() {
 
 	GetPrivateProfileString(L"Settings", L"PlayerName", L"", name, 100, iniFilePath);
 
+
+	for (int i = 0; i < ENEM_NB_ROW; i++) {
+		for (int j = 0; j < ENEM_NB_COL; j++) {
+
+			wchar_t key[64];
+			StringCchPrintf(key, 64, L"Enemy_%d_%d", i, j);
+
+			GetPrivateProfileString(L"Enemies", key, L"0,0", buffer, 256, iniFilePath);
+
+			int x = 0, y = 0;
+			swscanf_s(buffer, L"%ld,%ld", &x, &y);
+
+			if (x == 0 && y == 0)
+				destroy_window(i,j);
+			else {
+				if (enemies[i][j] == NULL)
+					enemies[i][j] = CreateWindowExW(
+						0,
+						L"STATIC",
+						nullptr, ///  brak nazwy klasy sprawia ze okno powstaje z puli gotowych   czyli basic wyglad
+						WS_CHILD | WS_VISIBLE | SS_CENTER,
+						/// CHILD czyli nie wychodzi poza ramke?,       WS_VISIBLE okno poajawi sie bez show window     
+						// CENTER  wyrownanie tekstu w oknie poziomo  do centrum
+						x, y,// pozycja
+						enemy_size.x, // rozmiar poziomo
+						enemy_size.y, // rozmair pionowo
+						m_main,
+						nullptr,
+						m_instance, /// klasa obslugujaca polecenia to tez glowna
+						nullptr);
+				else
+					MoveWindow(enemies[i][j], x, y, 0, 0, true);
+			}
+				
+
+
+			enemies_pos[i][j].x = x;
+			enemies_pos[i][j].y = y;
+		}
+	}
+
 	set_new_pos();
 	draw_and_calc_overlay();
 	
 }
-
-
 
 void game::on_game_end() {
 	create_and_show_end_window();
