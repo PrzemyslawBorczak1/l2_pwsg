@@ -196,7 +196,7 @@ game::game(HINSTANCE instance) // instancja jest podawna przy wywolaniu tego smi
 		.hwndOwner = m_main,  
 		.rgbResult = RGB(255, 255, 255),
 		.lpCustColors = custom_colors,
-		.Flags = CC_RGBINIT | CC_FULLOPEN,
+		.Flags = CC_RGBINIT | CC_FULLOPEN ,
 	};
 
 	open_file = {
@@ -735,10 +735,10 @@ void game::save() {
 
 
 
-	StringCchPrintf(buffer, 256, L"%d,%d,%d", GetRValue(color), GetGValue(color), GetBValue(color));
+	swprintf(buffer, 256, L"%d,%d,%d", GetRValue(color), GetGValue(color), GetBValue(color));
 	WritePrivateProfileString(L"Settings", L"Color", buffer, iniFilePath);
 
-	StringCchPrintf(buffer, 256, L"%ld,%ld", size.x, size.y);
+	swprintf(buffer, 256, L"%ld,%ld", size.x, size.y);
 	WritePrivateProfileString(L"Settings", L"Size", buffer, iniFilePath);
 
 
@@ -747,7 +747,7 @@ void game::save() {
 
 
 
-	StringCchPrintf(buffer, 256, L"%d", static_cast<int>(image_type));
+	swprintf(buffer, 256, L"%d", static_cast<int>(image_type));
 	WritePrivateProfileString(L"Settings", L"ImageType", buffer, iniFilePath);
 	
 
